@@ -54,7 +54,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        IPS_LogMessage('ZPS', "Message empfangen von ID $SenderID mit Wert: " . GetValue($SenderID));
+        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: " . GetValue($SenderID), 0);
 
         if ($Message !== VM_UPDATE) {
             return;
@@ -63,16 +63,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
-        // 🛁 Bad → sofort
         if ($SenderID === $bathID) {
-            IPS_LogMessage('ZPS', "Bad Bewegung erkannt");
+            $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
 
-        // 🍽️ Küche → Muster
         if ($SenderID === $kitchenID) {
-            IPS_LogMessage('ZPS', "Küche Bewegung erkannt");
+            $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
         }
     }
