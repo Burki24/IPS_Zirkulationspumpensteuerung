@@ -36,7 +36,9 @@
         {
             "type": "NumberSpinner",
             "name": "Runtime",
-            "caption": "Laufzeit (Sekunden)"
+            "caption": "Laufzeit (Sekunden)",
+            "minimum": 30,
+            "maximum": 2400
         },
         {
             "type": "NumberSpinner",
