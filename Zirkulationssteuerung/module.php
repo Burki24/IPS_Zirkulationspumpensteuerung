@@ -179,8 +179,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
-    public function RequestAction($Ident, $Value)
-    {
+    RequestAction(string $Ident, mixed $Value): void    {
         if ($Ident === 'SwitchOff') {
             $this->SwitchOff();
         }
