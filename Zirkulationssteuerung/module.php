@@ -122,38 +122,43 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function SwitchOn(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-
+    
         if (!IPS_VariableExists($switchID)) {
             $this->SendDebug('SwitchOn', 'SwitchID ungültig', 0);
             return;
         }
-
+    
         $runtime = $this->GetRuntime();
         $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
-
+    
         RequestAction($switchID, true);
-
+    
         // Timer starten
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
-
-        // Statusvariablen setzen (robust!)
+    
+        // Zeit setzen
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
-
-        $lastRunID = @IPS_GetObjectIDByIdent('LastRun', $this->InstanceID);
-        $runCountID = @IPS_GetObjectIDByIdent('RunCount', $this->InstanceID);
-        $activeID = @IPS_GetObjectIDByIdent('Active', $this->InstanceID);
-
-        if ($lastRunID > 0) {
+    
+        // IDs korrekt holen
+        $lastRunID = $this->GetIDForIdent('LastRun');
+        $runCountID = $this->GetIDForIdent('RunCount');
+        $activeID = $this->GetIDForIdent('Active');
+    
+        // Debug (sehr hilfreich!)
+        $this->SendDebug('IDs', "LastRun: $lastRunID | RunCount: $runCountID | Active: $activeID", 0);
+    
+        // Werte setzen
+        if ($lastRunID !== false) {
             SetValue($lastRunID, $now);
         }
-
-        if ($runCountID > 0) {
+    
+        if ($runCountID !== false) {
             $count = GetValue($runCountID);
             SetValue($runCountID, $count + 1);
         }
-
-        if ($activeID > 0) {
+    
+        if ($activeID !== false) {
             SetValue($activeID, true);
         }
     }
@@ -161,20 +166,22 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function SwitchOff(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-
+    
         if (!IPS_VariableExists($switchID)) {
             return;
         }
-
+    
         $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
-
+    
         RequestAction($switchID, false);
-
+    
         // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
-
-        $activeID = @IPS_GetObjectIDByIdent('Active', $this->InstanceID);
-        if ($activeID > 0) {
+    
+        // Active zurücksetzen
+        $activeID = $this->GetIDForIdent('Active');
+    
+        if ($activeID !== false) {
             SetValue($activeID, false);
         }
     }
