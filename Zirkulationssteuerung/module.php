@@ -54,16 +54,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        $value = GetValue($SenderID);
-    
-        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
-    
         if ($Message !== VM_UPDATE) {
             return;
         }
     
-        // 👉 NUR auf Bewegung reagieren (TRUE)
-        if (!$value) {
+        $value = GetValue($SenderID);
+    
+        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
+    
+        // 👉 HIER ist die wichtige Zeile
+        if ($value !== true) {
             return;
         }
     
