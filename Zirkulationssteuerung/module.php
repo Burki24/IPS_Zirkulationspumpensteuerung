@@ -134,34 +134,35 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $runtime = $this->GetRuntime();
         $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
     
+        // Pumpe einschalten
         RequestAction($switchID, true);
     
         // Timer starten
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
     
-        // Zeit setzen
+        // Zeit speichern
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
     
-        // IDs korrekt holen
+        // Variablen-IDs holen
         $lastRunID = $this->GetIDForIdent('LastRun');
         $runCountID = $this->GetIDForIdent('RunCount');
         $activeID = $this->GetIDForIdent('Active');
     
-        // Debug (sehr hilfreich!)
+        // Debug
         $this->SendDebug('IDs', "LastRun: $lastRunID | RunCount: $runCountID | Active: $activeID", 0);
     
-        // Werte setzen
-        if ($lastRunID !== false) {
+        // Werte setzen über RequestAction (wichtig bei EnableAction!)
+        if ($lastRunID > 0) {
             $this->RequestAction('LastRun', $now);
         }
     
-        if ($runCountID !== false) {
+        if ($runCountID > 0) {
             $count = GetValue($runCountID);
             $this->RequestAction('RunCount', $count + 1);
         }
     
-        if ($activeID !== false) {
+        if ($activeID > 0) {
             $this->RequestAction('Active', true);
         }
     }
