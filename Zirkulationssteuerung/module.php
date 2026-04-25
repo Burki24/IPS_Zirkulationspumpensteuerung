@@ -164,7 +164,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($activeID !== false) {
             $this->RequestAction('Active', true);
         }
-
+    }
+    
     public function SwitchOff(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
