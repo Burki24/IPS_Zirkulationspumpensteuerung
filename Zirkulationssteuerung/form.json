@@ -30,6 +30,10 @@
             "caption": "Grundeinstellungen"
         },
         {
+            "type": "Label",
+            "caption": "Hier werden die Laufzeiten und die intelligente Steuerung der Zirkulationspumpe festgelegt. Die Küche nutzt eine Mustererkennung, um unnötige Starts zu vermeiden."
+        },
+        {
             "type": "NumberSpinner",
             "name": "Runtime",
             "caption": "Laufzeit (Sekunden)"
