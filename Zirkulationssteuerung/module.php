@@ -153,18 +153,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
     
         // Werte setzen
         if ($lastRunID !== false) {
-            SetValue($lastRunID, $now);
+            $this->RequestAction('LastRun', $now);
         }
     
         if ($runCountID !== false) {
             $count = GetValue($runCountID);
-            SetValue($runCountID, $count + 1);
+            $this->RequestAction('RunCount', $count + 1);
         }
     
         if ($activeID !== false) {
-            SetValue($activeID, true);
+            $this->RequestAction('Active', true);
         }
-    }
 
     public function SwitchOff(): void
     {
@@ -185,7 +184,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $activeID = $this->GetIDForIdent('Active');
     
         if ($activeID !== false) {
-            SetValue($activeID, false);
+            $this->RequestAction('Active', false);
         }
     }
 
