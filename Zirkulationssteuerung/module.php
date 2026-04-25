@@ -190,7 +190,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
-    public function RequestAction(string $Ident, mixed $Value): void    {
+    public function RequestAction(string $Ident, mixed $Value): void
+    {
         switch ($Ident) {
             case 'SwitchOff':
                 $this->SwitchOff();
@@ -199,7 +200,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
             case 'LastRun':
             case 'RunCount':
             case 'Active':
-                // nur erlauben, nichts tun
+                SetValue($this->GetIDForIdent($Ident), $Value);
                 break;
         }
     }
