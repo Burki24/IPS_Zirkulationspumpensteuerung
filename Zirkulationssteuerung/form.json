@@ -31,7 +31,7 @@
         },
         {
             "type": "Label",
-            "caption": "Hier werden die Laufzeiten und die intelligente Steuerung der Zirkulationspumpe festgelegt. Die Küche nutzt eine Mustererkennung, um unnötige Starts zu vermeiden."
+            "caption": "Hier weird Laufzeit (30-2400 Sekunden), Sperrzeit und die intelligente Steuerung der Zirkulationspumpe festgelegt. Die Küche nutzt eine Mustererkennung, um unnötige Starts zu vermeiden."
         },
         {
             "type": "NumberSpinner",
