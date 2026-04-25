@@ -1,9 +1,18 @@
 {
     "elements": [
         {
+            "type": "Label",
+            "caption": "Schaltaktor Zirkulationspumpe"
+        },
+        {
             "type": "SelectVariable",
             "name": "SwitchID",
             "caption": "Zirkulationspumpe"
+        },
+
+        {
+            "type": "Label",
+            "caption": "Bewegungsmelder der Räume"
         },
         {
             "type": "SelectVariable",
@@ -14,6 +23,11 @@
             "type": "SelectVariable",
             "name": "MotionIDKitchen",
             "caption": "Bewegungsmelder Küche"
+        },
+
+        {
+            "type": "Label",
+            "caption": "Grundeinstellungen"
         },
         {
             "type": "NumberSpinner",
