@@ -1,5 +1,41 @@
 {
-    "elements": [],
-    "actions": [],
-    "status": []
+    "elements": [
+        {
+            "type": "SelectVariable",
+            "name": "SwitchID",
+            "caption": "Zirkulationspumpe"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDsBath",
+            "caption": "Bewegungsmelder Bad",
+            "multiple": true
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDsKitchen",
+            "caption": "Bewegungsmelder Küche",
+            "multiple": true
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "Runtime",
+            "caption": "Laufzeit (Sekunden)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "LockTime",
+            "caption": "Sperrzeit (Sekunden)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TriggerCount",
+            "caption": "Trigger Anzahl (Küche)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TriggerWindow",
+            "caption": "Zeitfenster (Sekunden)"
+        }
+    ]
 }
