@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-class ZirkulationByMotion extends IPSModuleStrict
+class Zirkulationssteuerung extends IPSModuleStrict
 {
     public function Create(): void
     {
