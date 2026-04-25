@@ -28,7 +28,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // Timer (Prefix beachten!)
+        // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
     }
 
@@ -39,22 +39,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
+        IPS_LogMessage('ZPS', "ApplyChanges - BathID: $bathID, KitchenID: $kitchenID");
+
         if ($bathID > 0 && IPS_VariableExists($bathID)) {
+            IPS_LogMessage('ZPS', "Registriere Bad BWM: $bathID");
             $this->RegisterMessage($bathID, VM_UPDATE);
         }
 
         if ($kitchenID > 0 && IPS_VariableExists($kitchenID)) {
+            IPS_LogMessage('ZPS', "Registriere Küchen BWM: $kitchenID");
             $this->RegisterMessage($kitchenID, VM_UPDATE);
         }
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        if ($Message !== VM_UPDATE) {
-            return;
-        }
+        IPS_LogMessage('ZPS', "Message empfangen von ID $SenderID mit Wert: " . GetValue($SenderID));
 
-        if (!GetValueBoolean($SenderID)) {
+        if ($Message !== VM_UPDATE) {
             return;
         }
 
@@ -63,12 +65,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // 🛁 Bad → sofort
         if ($SenderID === $bathID) {
+            IPS_LogMessage('ZPS', "Bad Bewegung erkannt");
             $this->TrySwitchOn();
             return;
         }
 
-        // 🍽️ Küche → Mustererkennung
+        // 🍽️ Küche → Muster
         if ($SenderID === $kitchenID) {
+            IPS_LogMessage('ZPS', "Küche Bewegung erkannt");
             $this->HandleKitchenMotion();
         }
     }
@@ -85,10 +89,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
 
-        // alte Events entfernen
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
-
-        // neues Event hinzufügen
         $events[] = $now;
 
         $this->SetBuffer('KitchenEvents', json_encode($events));
@@ -96,12 +97,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $count = count($events);
         $needed = $this->ReadPropertyInteger('TriggerCount');
 
+        IPS_LogMessage('ZPS', "Küche Events: $count / $needed");
+
         if ($count >= $needed) {
-            IPS_LogMessage('ZPS', "Küche Trigger erkannt ($count/$needed)");
-
+            IPS_LogMessage('ZPS', "Küche Trigger ausgelöst");
             $this->TrySwitchOn();
-
-            // Reset
             $this->SetBuffer('KitchenEvents', json_encode([]));
         }
     }
@@ -112,6 +112,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $lockTime = $this->ReadPropertyInteger('LockTime');
 
         if ($lastRun > 0 && (time() - $lastRun) < $lockTime) {
+            IPS_LogMessage('ZPS', "Sperrzeit aktiv - kein Start");
             return;
         }
 
@@ -123,12 +124,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $switchID = $this->ReadPropertyInteger('SwitchID');
 
         if (!IPS_VariableExists($switchID)) {
+            IPS_LogMessage('ZPS', "SwitchID ungültig");
             return;
         }
 
         $runtime = $this->GetRuntime();
 
-        IPS_LogMessage('ZPS', 'Pumpe EIN für ' . $runtime . ' Sekunden');
+        IPS_LogMessage('ZPS', "Pumpe EIN für $runtime Sekunden");
 
         RequestAction($switchID, true);
 
@@ -151,7 +153,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
 
-        IPS_LogMessage('ZPS', 'Pumpe AUS');
+        IPS_LogMessage('ZPS', "Pumpe AUS");
 
         RequestAction($switchID, false);
 
