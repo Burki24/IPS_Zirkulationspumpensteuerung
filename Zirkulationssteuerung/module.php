@@ -54,21 +54,30 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
-        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: " . GetValue($SenderID), 0);
-
+        $value = GetValue($SenderID);
+    
+        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
+    
         if ($Message !== VM_UPDATE) {
             return;
         }
-
+    
+        // 👉 NUR auf Bewegung reagieren (TRUE)
+        if (!$value) {
+            return;
+        }
+    
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
-
+    
+        // 🛁 Bad → sofort
         if ($SenderID === $bathID) {
             $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
-
+    
+        // 🍽️ Küche → Muster
         if ($SenderID === $kitchenID) {
             $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
