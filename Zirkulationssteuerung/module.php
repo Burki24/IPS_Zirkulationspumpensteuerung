@@ -59,7 +59,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $value = GetValue($SenderID);
         $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
 
-        if ($value !== true) {
+        if (!(bool)$value) {
             return;
         }
 
