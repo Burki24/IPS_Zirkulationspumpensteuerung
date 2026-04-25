@@ -25,8 +25,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
+        $this->EnableAction('LastRun');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
+        $this->EnableAction('RunCount');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
+        $this->EnableAction('Active');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
@@ -187,8 +190,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
     }
 
     public function RequestAction(string $Ident, mixed $Value): void    {
-        if ($Ident === 'SwitchOff') {
-            $this->SwitchOff();
+        switch ($Ident) {
+            case 'SwitchOff':
+                $this->SwitchOff();
+                break;
+    
+            case 'LastRun':
+            case 'RunCount':
+            case 'Active':
+                // nur erlauben, nichts tun
+                break;
         }
     }
 
