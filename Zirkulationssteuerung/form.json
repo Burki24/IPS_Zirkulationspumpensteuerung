@@ -7,15 +7,13 @@
         },
         {
             "type": "SelectVariable",
-            "name": "MotionIDsBath",
-            "caption": "Bewegungsmelder Bad",
-            "multiple": true
+            "name": "MotionIDBath",
+            "caption": "Bewegungsmelder Bad"
         },
         {
             "type": "SelectVariable",
-            "name": "MotionIDsKitchen",
-            "caption": "Bewegungsmelder Küche",
-            "multiple": true
+            "name": "MotionIDKitchen",
+            "caption": "Bewegungsmelder Küche"
         },
         {
             "type": "NumberSpinner",
