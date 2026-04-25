@@ -1,0 +1,12 @@
+{
+    "id": "{BCCB5185-BF10-35D0-0D32-651BEF236BBB}",
+    "name": "Zirkulationspumpensteuerung",
+    "author": "Burkhard Kneiseler",
+    "url": "https://github.com/Burki24/IPS_Zirkulationspumpensteuerung",
+    "compatibility": {
+        "version": "7.1"
+    },
+    "version": "1.0",
+    "build": 0,
+    "date": 0
+}

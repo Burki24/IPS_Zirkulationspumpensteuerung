@@ -1,0 +1,12 @@
+{
+    "id": "{5CA505B3-77F1-6CCD-C7D6-520885F20022}",
+    "name": "Zirkulationssteuerung",
+    "type": 3,
+    "vendor": "Burki24",
+    "aliases": [],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "ZPS",
+    "url": ""
+}
