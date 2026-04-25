@@ -28,8 +28,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // Timer
-        $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+        // Timer (FIX!)
+        $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
     }
 
     public function ApplyChanges(): void
@@ -39,15 +39,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
-        IPS_LogMessage('ZPS', "ApplyChanges - BathID: $bathID, KitchenID: $kitchenID");
+        $this->SendDebug('ApplyChanges', "BathID: $bathID, KitchenID: $kitchenID", 0);
 
         if ($bathID > 0 && IPS_VariableExists($bathID)) {
-            IPS_LogMessage('ZPS', "Registriere Bad BWM: $bathID");
             $this->RegisterMessage($bathID, VM_UPDATE);
         }
 
         if ($kitchenID > 0 && IPS_VariableExists($kitchenID)) {
-            IPS_LogMessage('ZPS', "Registriere Küchen BWM: $kitchenID");
             $this->RegisterMessage($kitchenID, VM_UPDATE);
         }
     }
@@ -57,27 +55,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($Message !== VM_UPDATE) {
             return;
         }
-    
+
         $value = GetValue($SenderID);
-    
         $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
-    
-        // 👉 HIER ist die wichtige Zeile
+
         if ($value !== true) {
             return;
         }
-    
+
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
-    
-        // 🛁 Bad → sofort
+
         if ($SenderID === $bathID) {
             $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
-    
-        // 🍽️ Küche → Muster
+
         if ($SenderID === $kitchenID) {
             $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
@@ -89,7 +83,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $now = time();
 
         $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true);
-
         if (!is_array($events)) {
             $events = [];
         }
@@ -104,10 +97,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $count = count($events);
         $needed = $this->ReadPropertyInteger('TriggerCount');
 
-        IPS_LogMessage('ZPS', "Küche Events: $count / $needed");
+        $this->SendDebug('Küche', "Events: $count / $needed", 0);
 
         if ($count >= $needed) {
-            IPS_LogMessage('ZPS', "Küche Trigger ausgelöst");
+            $this->SendDebug('Küche', 'Trigger ausgelöst', 0);
             $this->TrySwitchOn();
             $this->SetBuffer('KitchenEvents', json_encode([]));
         }
@@ -119,7 +112,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $lockTime = $this->ReadPropertyInteger('LockTime');
 
         if ($lastRun > 0 && (time() - $lastRun) < $lockTime) {
-            IPS_LogMessage('ZPS', "Sperrzeit aktiv - kein Start");
+            $this->SendDebug('Lock', 'Sperrzeit aktiv', 0);
             return;
         }
 
@@ -131,23 +124,29 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $switchID = $this->ReadPropertyInteger('SwitchID');
 
         if (!IPS_VariableExists($switchID)) {
-            IPS_LogMessage('ZPS', "SwitchID ungültig");
+            $this->SendDebug('SwitchOn', 'SwitchID ungültig', 0);
             return;
         }
 
         $runtime = $this->GetRuntime();
 
-        IPS_LogMessage('ZPS', "Pumpe EIN für $runtime Sekunden");
+        $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
 
         RequestAction($switchID, true);
 
+        // Timer starten
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
-        $this->SetBuffer('LastRun', (string)time());
-        SetValue($this->GetIDForIdent('LastRun'), time());
+        // Status setzen
+        $now = time();
+        $this->SetBuffer('LastRun', (string)$now);
+        SetValue($this->GetIDForIdent('LastRun'), $now);
 
-        $count = GetValue($this->GetIDForIdent('RunCount'));
-        SetValue($this->GetIDForIdent('RunCount'), $count + 1);
+        $countID = $this->GetIDForIdent('RunCount');
+        if ($countID > 0) {
+            $count = GetValue($countID);
+            SetValue($countID, $count + 1);
+        }
 
         SetValue($this->GetIDForIdent('Active'), true);
     }
@@ -160,13 +159,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
 
-        IPS_LogMessage('ZPS', "Pumpe AUS");
+        $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
 
         RequestAction($switchID, false);
 
+        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
 
         SetValue($this->GetIDForIdent('Active'), false);
+    }
+
+    // WICHTIG für Timer!
+    public function RequestAction($Ident, $Value)
+    {
+        switch ($Ident) {
+            case 'SwitchOff':
+                $this->SwitchOff();
+                break;
+        }
     }
 
     private function GetRuntime(): int
