@@ -110,6 +110,7 @@
             "name": "WarmReduction",
             "caption": "Laufzeit Reduktion (%)"
         },
+
         {
             "type": "Label",
             "caption": "Verbrauchsberechnung"
@@ -123,6 +124,7 @@
             "name": "PumpPower",
             "caption": "Leistung (Watt)"
         },
+
         {
             "type": "Label",
             "caption": "Stromkosten"
@@ -137,55 +139,48 @@
             "caption": "Strompreis (€/kWh)",
             "digits": 3
         },
+
         {
             "type": "ExpansionPanel",
             "caption": "Statistik zurücksetzen",
             "items": [
-        {
-            "type": "Label",
-            "caption": "⚠ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!"
-        },
-        {
-            "type": "ExpansionPanel",
-            "caption": "Statistik zurücksetzen",
-            "items": [
-        {
-            "type": "Label",
-            "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden!"
-        },
+                {
+                    "type": "Label",
+                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden!"
+                },
 
-        {
-            "type": "Button",
-            "caption": "Tageswerte vorbereiten",
-            "onClick": "ZPS_ArmReset($id, 'daily');"
-        },
-        {
-            "type": "Button",
-            "caption": "Tageswerte JETZT zurücksetzen",
-            "onClick": "ZPS_ResetDaily($id);"
-        },
+                {
+                    "type": "Button",
+                    "caption": "Tageswerte vorbereiten",
+                    "onClick": "ZPS_ArmReset($id, 'daily');"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Tageswerte JETZT zurücksetzen",
+                    "onClick": "ZPS_ResetDaily($id);"
+                },
 
-        {
-            "type": "Button",
-            "caption": "Gesamtwerte vorbereiten",
-            "onClick": "ZPS_ArmReset($id, 'total');"
-        },
-        {
-            "type": "Button",
-            "caption": "Gesamtwerte JETZT zurücksetzen",
-            "onClick": "ZPS_ResetTotal($id);"
-        },
+                {
+                    "type": "Button",
+                    "caption": "Gesamtwerte vorbereiten",
+                    "onClick": "ZPS_ArmReset($id, 'total');"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Gesamtwerte JETZT zurücksetzen",
+                    "onClick": "ZPS_ResetTotal($id);"
+                },
 
-        {
-            "type": "Button",
-            "caption": "ALLES vorbereiten",
-            "onClick": "ZPS_ArmReset($id, 'all');"
-        },
-        {
-            "type": "Button",
-            "caption": "ALLES JETZT zurücksetzen",
-            "onClick": "ZPS_ResetAll($id);"
-        }
+                {
+                    "type": "Button",
+                    "caption": "ALLES vorbereiten",
+                    "onClick": "ZPS_ArmReset($id, 'all');"
+                },
+                {
+                    "type": "Button",
+                    "caption": "ALLES JETZT zurücksetzen",
+                    "onClick": "ZPS_ResetAll($id);"
+                }
             ]
         }
     ]
