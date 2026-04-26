@@ -77,26 +77,39 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function HandleKitchenMotion(): void
     {
         $now = time();
-
+    
         $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true);
         if (!is_array($events)) {
             $events = [];
         }
-
+    
         $window = $this->ReadPropertyInteger('TriggerWindow');
-
-        // alte Events rauswerfen
+    
+        // alte Events entfernen
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
+    
+        // Zeitabstände prüfen
+        if (count($events) > 0) {
+            $last = end($events);
+            $delta = $now - $last;
+    
+            // 🔥 smarter Filter:
+            // Bewegung muss "aktiv" sein (nicht zu langsam)
+            if ($delta > 15) {
+                // Reset wenn zu viel Zeit dazwischen
+                $events = [];
+            }
+        }
+    
         $events[] = $now;
-
+    
         $this->SetBuffer('KitchenEvents', json_encode($events));
-
+    
         if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
             $this->TrySwitchOn();
             $this->SetBuffer('KitchenEvents', json_encode([]));
         }
     }
-
     private function TrySwitchOn(): void
     {
         $lastRun = (int)$this->GetBuffer('LastRun');
