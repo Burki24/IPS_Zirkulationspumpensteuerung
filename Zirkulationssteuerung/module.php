@@ -8,27 +8,42 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::Create();
 
-        // Properties
+        // Geräte
         $this->RegisterPropertyInteger('MotionIDBath', 0);
         $this->RegisterPropertyInteger('MotionIDKitchen', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
 
+        // Basislaufzeit
         $this->RegisterPropertyInteger('Runtime', 180);
-        $this->RegisterPropertyInteger('RuntimeNight', 120);
-        $this->RegisterPropertyInteger('LockTime', 600);
 
+        // Zeitsteuerung
+        $this->RegisterPropertyBoolean('UseTimeControl', false);
+
+        $this->RegisterPropertyInteger('TimeStart1', 6);
+        $this->RegisterPropertyInteger('TimeEnd1', 9);
+        $this->RegisterPropertyInteger('Runtime1', 180);
+
+        $this->RegisterPropertyInteger('TimeStart2', 18);
+        $this->RegisterPropertyInteger('TimeEnd2', 23);
+        $this->RegisterPropertyInteger('Runtime2', 180);
+
+        // Warmwasser-Optimierung
+        $this->RegisterPropertyInteger('WarmWindow', 600);
+        $this->RegisterPropertyInteger('WarmReduction', 30);
+
+        // Küche Logik
         $this->RegisterPropertyInteger('TriggerCount', 3);
         $this->RegisterPropertyInteger('TriggerWindow', 60);
 
-        $this->RegisterPropertyInteger('NightStart', 22);
-        $this->RegisterPropertyInteger('NightEnd', 6);
+        // Sperrzeit
+        $this->RegisterPropertyInteger('LockTime', 600);
 
         // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // Timer für Abschaltung
+        // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
     }
 
@@ -54,22 +69,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
 
-        $value = GetValue($SenderID);
-
-        // Nur auf TRUE reagieren
-        if (!(bool)$value) {
+        if (!(bool)GetValue($SenderID)) {
             return;
         }
 
-        $bathID = $this->ReadPropertyInteger('MotionIDBath');
-        $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
-
-        if ($SenderID === $bathID) {
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDBath')) {
             $this->TrySwitchOn();
             return;
         }
 
-        if ($SenderID === $kitchenID) {
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDKitchen')) {
             $this->HandleKitchenMotion();
         }
     }
@@ -77,39 +86,32 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function HandleKitchenMotion(): void
     {
         $now = time();
-    
+
         $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true);
         if (!is_array($events)) {
             $events = [];
         }
-    
+
         $window = $this->ReadPropertyInteger('TriggerWindow');
-    
-        // alte Events entfernen
+
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
-    
-        // Zeitabstände prüfen
+
         if (count($events) > 0) {
-            $last = end($events);
-            $delta = $now - $last;
-    
-            // 🔥 smarter Filter:
-            // Bewegung muss "aktiv" sein (nicht zu langsam)
+            $delta = $now - end($events);
             if ($delta > 15) {
-                // Reset wenn zu viel Zeit dazwischen
                 $events = [];
             }
         }
-    
+
         $events[] = $now;
-    
         $this->SetBuffer('KitchenEvents', json_encode($events));
-    
+
         if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
             $this->TrySwitchOn();
             $this->SetBuffer('KitchenEvents', json_encode([]));
         }
     }
+
     private function TrySwitchOn(): void
     {
         $lastRun = (int)$this->GetBuffer('LastRun');
@@ -125,23 +127,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function SwitchOn(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-
         if (!IPS_VariableExists($switchID)) {
             return;
         }
 
         $runtime = $this->GetRuntime();
 
-        // Pumpe EIN
         RequestAction($switchID, true);
-
-        // Abschalt-Timer
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
-        // ✅ KORREKTES Schreiben (IPSModuleStrict!)
+        // IPSModuleStrict korrekt
         $this->SetValue('LastRun', $now);
         $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
         $this->SetValue('Active', true);
@@ -150,38 +148,57 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function SwitchOff(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-
         if (!IPS_VariableExists($switchID)) {
             return;
         }
 
-        // Pumpe AUS
         RequestAction($switchID, false);
-
-        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
 
-        // Status setzen
         $this->SetValue('Active', false);
     }
 
     private function GetRuntime(): int
     {
+        $runtime = $this->ReadPropertyInteger('Runtime');
         $hour = (int)date('G');
 
-        $nightStart = $this->ReadPropertyInteger('NightStart');
-        $nightEnd = $this->ReadPropertyInteger('NightEnd');
+        // Zeitfenster
+        if ($this->ReadPropertyBoolean('UseTimeControl')) {
 
-        if ($nightStart > $nightEnd) {
-            if ($hour >= $nightStart || $hour < $nightEnd) {
-                return $this->ReadPropertyInteger('RuntimeNight');
+            if ($this->IsInTimeRange($hour,
+                $this->ReadPropertyInteger('TimeStart1'),
+                $this->ReadPropertyInteger('TimeEnd1'))) {
+
+                $runtime = $this->ReadPropertyInteger('Runtime1');
             }
-        } else {
-            if ($hour >= $nightStart && $hour < $nightEnd) {
-                return $this->ReadPropertyInteger('RuntimeNight');
+
+            if ($this->IsInTimeRange($hour,
+                $this->ReadPropertyInteger('TimeStart2'),
+                $this->ReadPropertyInteger('TimeEnd2'))) {
+
+                $runtime = $this->ReadPropertyInteger('Runtime2');
             }
         }
 
-        return $this->ReadPropertyInteger('Runtime');
+        // Warmwasser-Erkennung
+        $lastRun = (int)$this->GetBuffer('LastRun');
+        $warmWindow = $this->ReadPropertyInteger('WarmWindow');
+
+        if ($lastRun > 0 && (time() - $lastRun) < $warmWindow) {
+
+            $reduction = $this->ReadPropertyInteger('WarmReduction');
+            $runtime = (int)round($runtime * (1 - $reduction / 100));
+        }
+
+        return max(10, $runtime);
+    }
+
+    private function IsInTimeRange(int $hour, int $start, int $end): bool
+    {
+        if ($start > $end) {
+            return ($hour >= $start || $hour < $end);
+        }
+        return ($hour >= $start && $hour < $end);
     }
 }
