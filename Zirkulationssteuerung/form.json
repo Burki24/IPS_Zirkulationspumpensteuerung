@@ -151,8 +151,9 @@
                 },
 
                 {
-                    "type": "Label",
-                    "caption": "@ZPS_GetResetStatus($id)"
+                    "type": "Value",
+                    "caption": "Status",
+                    "value": "@ZPS_GetResetStatus($id)"
                 },
 
                 {
