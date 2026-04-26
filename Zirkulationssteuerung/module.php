@@ -7,7 +7,7 @@ require_once __DIR__ . '/../libs/VariableProfileHelper.php';
 class Zirkulationssteuerung extends IPSModuleStrict
 {
     use VariableProfileHelper;
-    
+
     public function Create(): void
     {
         parent::Create();
@@ -47,7 +47,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyFloat('PumpPower', 30.0);
         $this->RegisterPropertyFloat('EnergyPrice', 0.30);
 
-        // Status
+        // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
@@ -75,7 +75,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
 
-        // InstallTime
+        // Installationszeit
         if ($this->GetBuffer('InstallTime') === '') {
             $installTime = time();
             $this->SetBuffer('InstallTime', (string)$installTime);
@@ -93,7 +93,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        // Geräte
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
@@ -105,7 +104,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
             $this->RegisterMessage($kitchenID, VM_UPDATE);
         }
 
-        // Preislogik
+        // Preis-Handling
         $oldPrice = (float)$this->GetBuffer('LastPrice');
         $newPrice = $this->ReadPropertyFloat('EnergyPrice');
 
@@ -156,6 +155,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function TrySwitchOn(): void
     {
         $lastRun = (int)$this->GetBuffer('LastRun');
+
         if ($lastRun > 0 && (time() - $lastRun) < $this->ReadPropertyInteger('LockTime')) {
             return;
         }
@@ -202,6 +202,135 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('RunStart', '');
     }
 
+    private function GetRuntime(): int
+    {
+        $runtime = $this->ReadPropertyInteger('Runtime');
+        $hour = (int)date('G');
+
+        if ($this->ReadPropertyBoolean('UseTimeControl')) {
+
+            if ($this->IsInTimeRange($hour,
+                $this->ReadPropertyInteger('TimeStart1'),
+                $this->ReadPropertyInteger('TimeEnd1'))) {
+                $runtime = $this->ReadPropertyInteger('Runtime1');
+            }
+
+            if ($this->IsInTimeRange($hour,
+                $this->ReadPropertyInteger('TimeStart2'),
+                $this->ReadPropertyInteger('TimeEnd2'))) {
+                $runtime = $this->ReadPropertyInteger('Runtime2');
+            }
+        }
+
+        $lastRun = (int)$this->GetBuffer('LastRun');
+        $warmWindow = $this->ReadPropertyInteger('WarmWindow');
+
+        if ($lastRun > 0 && (time() - $lastRun) < $warmWindow) {
+            $reduction = $this->ReadPropertyInteger('WarmReduction');
+            $runtime = (int)round($runtime * (1 - $reduction / 100));
+        }
+
+        return max(10, $runtime);
+    }
+
+    private function IsInTimeRange(int $hour, int $start, int $end): bool
+    {
+        if ($start > $end) {
+            return ($hour >= $start || $hour < $end);
+        }
+        return ($hour >= $start && $hour < $end);
+    }
+
+    private function UpdateRuntime(): void
+    {
+        $start = (int)$this->GetBuffer('RunStart');
+        if ($start <= 0) return;
+
+        $duration = time() - $start;
+
+        $total = $this->GetValue('TotalRuntime') + $duration;
+        $this->SetValue('TotalRuntime', $total);
+
+        $this->SetValue('TotalRuntimeHours', round($total / 3600, 2));
+    }
+
+    private function UpdateEnergy(): void
+    {
+        $seconds = $this->GetValue('TotalRuntime');
+        $hours = $seconds / 3600;
+
+        $power = $this->ReadPropertyFloat('PumpPower');
+
+        $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
+    }
+
+    private function UpdateSavings(): void
+    {
+        $installTime = (int)$this->GetBuffer('InstallTime');
+
+        if ($installTime <= 0) {
+            $installTime = time();
+            $this->SetBuffer('InstallTime', (string)$installTime);
+        }
+
+        $runtimeHours = (time() - $installTime) / 3600;
+        $power = $this->ReadPropertyFloat('PumpPower');
+
+        $full = ($power / 1000) * $runtimeHours;
+        $saved = $full - $this->GetValue('EstimatedEnergy');
+
+        if ($saved < 0) $saved = 0;
+
+        $this->SetValue('SavedEnergy', round($saved, 3));
+    }
+
+    private function CheckDailyReset(): void
+    {
+        $today = date('Y-m-d');
+
+        if ($this->GetBuffer('LastDay') !== $today) {
+            $this->SetValue('DailyRuntime', 0);
+            $this->SetValue('DailyEnergy', 0.0);
+            $this->SetValue('DailySavings', 0.0);
+            $this->SetBuffer('LastDay', $today);
+        }
+    }
+
+    private function UpdateDaily(): void
+    {
+        $start = (int)$this->GetBuffer('RunStart');
+        if ($start <= 0) return;
+
+        $duration = time() - $start;
+
+        $runtime = $this->GetValue('DailyRuntime') + $duration;
+        $this->SetValue('DailyRuntime', $runtime);
+
+        $hours = $runtime / 3600;
+        $power = $this->ReadPropertyFloat('PumpPower');
+
+        $energy = ($power / 1000) * $hours;
+        $this->SetValue('DailyEnergy', round($energy, 3));
+
+        $todayStart = strtotime(date('Y-m-d 00:00:00'));
+        $installTime = (int)$this->GetBuffer('InstallTime');
+
+        if ($installTime <= 0) {
+            $installTime = time();
+            $this->SetBuffer('InstallTime', (string)$installTime);
+        }
+
+        $startTime = max($todayStart, $installTime);
+        $elapsed = max(0, time() - $startTime);
+
+        $full = ($power / 1000) * ($elapsed / 3600);
+        $saved = $full - $energy;
+
+        if ($saved < 0) $saved = 0;
+
+        $this->SetValue('DailySavings', round($saved, 3));
+    }
+
     private function UpdateCosts(): void
     {
         $price = $this->ReadPropertyFloat('EnergyPrice');
@@ -211,6 +340,4 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyCost', round($this->GetValue('DailyEnergy') * $price, 2));
         $this->SetValue('DailySavedCost', round($this->GetValue('DailySavings') * $price, 2));
     }
-
-    // ---- (Rest unverändert: Runtime, Energy, Daily etc.) ----
 }
