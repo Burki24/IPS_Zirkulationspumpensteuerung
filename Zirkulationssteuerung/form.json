@@ -140,45 +140,61 @@
             "digits": 3
         },
 
+{
+    "type": "ExpansionPanel",
+    "caption": "Statistik zurücksetzen",
+    "items": [
         {
-            "type": "ExpansionPanel",
-            "caption": "Statistik zurücksetzen",
+            "type": "Label",
+            "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden Zeitfenster)!"
+        },
+
+        {
+            "type": "RowLayout",
             "items": [
                 {
-                    "type": "Label",
-                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden!"
-                },
-
-                {
                     "type": "Button",
-                    "caption": "Tageswerte zurücksetzen aktivieren",
+                    "caption": "Tageswerte aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'daily');"
                 },
                 {
                     "type": "Button",
-                    "caption": "Tageswerte JETZT zurücksetzen",
+                    "caption": "JETZT zurücksetzen",
+                    "enabled": "@ZPS_IsResetStillValid($id, 'daily')",
                     "onClick": "ZPS_ResetDaily($id);"
-                },
+                }
+            ]
+        },
 
+        {
+            "type": "RowLayout",
+            "items": [
                 {
                     "type": "Button",
-                    "caption": "Gesamtwerte zurücksetzen aktivieren",
+                    "caption": "Gesamtwerte aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'total');"
                 },
                 {
                     "type": "Button",
-                    "caption": "Gesamtwerte JETZT zurücksetzen",
+                    "caption": "JETZT zurücksetzen",
+                    "enabled": "@ZPS_IsResetStillValid($id, 'total')",
                     "onClick": "ZPS_ResetTotal($id);"
-                },
+                }
+            ]
+        },
 
+        {
+            "type": "RowLayout",
+            "items": [
                 {
                     "type": "Button",
-                    "caption": "ALLES zurücksetzen aktivieren",
+                    "caption": "ALLES aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'all');"
                 },
                 {
                     "type": "Button",
-                    "caption": "ALLES JETZT zurücksetzen",
+                    "caption": "JETZT ALLES löschen",
+                    "enabled": "@ZPS_IsResetStillValid($id, 'all')",
                     "onClick": "ZPS_ResetAll($id);"
                 }
             ]
