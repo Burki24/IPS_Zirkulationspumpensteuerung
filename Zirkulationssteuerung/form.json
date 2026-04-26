@@ -1,5 +1,6 @@
 {
     "elements": [
+
         {
             "type": "Label",
             "caption": "Schaltaktor Zirkulationspumpe"
@@ -12,7 +13,7 @@
 
         {
             "type": "Label",
-            "caption": "Bewegungsmelder der Räume"
+            "caption": "Bewegungsmelder"
         },
         {
             "type": "SelectVariable",
@@ -30,30 +31,84 @@
             "caption": "Grundeinstellungen"
         },
         {
-            "type": "Label",
-            "caption": "Hier weird Laufzeit (30-2400 Sekunden), Sperrzeit und die intelligente Steuerung der Zirkulationspumpe festgelegt. Die Küche nutzt eine Mustererkennung, um unnötige Starts zu vermeiden."
-        },
-        {
             "type": "NumberSpinner",
             "name": "Runtime",
-            "caption": "Laufzeit (Sekunden)",
-            "minimum": 30,
-            "maximum": 2400
+            "caption": "Standard Laufzeit (Sekunden)"
         },
         {
             "type": "NumberSpinner",
             "name": "LockTime",
             "caption": "Sperrzeit (Sekunden)"
         },
+
+        {
+            "type": "Label",
+            "caption": "Küche Erkennung"
+        },
         {
             "type": "NumberSpinner",
             "name": "TriggerCount",
-            "caption": "Trigger Anzahl (Küche)"
+            "caption": "Bewegungen bis Start"
         },
         {
             "type": "NumberSpinner",
             "name": "TriggerWindow",
             "caption": "Zeitfenster (Sekunden)"
+        },
+
+        {
+            "type": "Label",
+            "caption": "Zeitabhängige Laufzeiten (optional)"
+        },
+        {
+            "type": "CheckBox",
+            "name": "UseTimeControl",
+            "caption": "Zeitsteuerung aktivieren"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TimeStart1",
+            "caption": "Fenster 1 Start (Stunde)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TimeEnd1",
+            "caption": "Fenster 1 Ende (Stunde)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "Runtime1",
+            "caption": "Laufzeit Fenster 1"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TimeStart2",
+            "caption": "Fenster 2 Start (Stunde)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "TimeEnd2",
+            "caption": "Fenster 2 Ende (Stunde)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "Runtime2",
+            "caption": "Laufzeit Fenster 2"
+        },
+
+        {
+            "type": "Label",
+            "caption": "Warmwasser-Optimierung"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "WarmWindow",
+            "caption": "Zeitraum 'noch warm' (Sekunden)"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "WarmReduction",
+            "caption": "Laufzeit Reduktion (%)"
         }
     ]
 }
