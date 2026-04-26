@@ -158,11 +158,17 @@
                             "onClick": "ZPS_ArmReset($id, 'daily');"
                         },
                         {
+                            "type": "Label",
+                            "caption": "@ZPS_GetResetStatus($id)"
+                        },
+                        {
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
                             "visible": "@ZPS_IsResetStillValid($id, 'daily')",
                             "onClick": "ZPS_ResetDaily($id);"
-                        }
+                        },
+                        {
+                        
                     ]
                 },
         
@@ -173,6 +179,10 @@
                             "type": "Button",
                             "caption": "Gesamtwerte aktivieren",
                             "onClick": "ZPS_ArmReset($id, 'total');"
+                        },
+                        {
+                            "type": "Label",
+                            "caption": "@ZPS_GetResetStatus($id)"
                         },
                         {
                             "type": "Button",
@@ -190,6 +200,10 @@
                             "type": "Button",
                             "caption": "ALLES aktivieren",
                             "onClick": "ZPS_ArmReset($id, 'all');"
+                        },
+                        {
+                            "type": "Label",
+                            "caption": "@ZPS_GetResetStatus($id)"
                         },
                         {
                             "type": "Button",
