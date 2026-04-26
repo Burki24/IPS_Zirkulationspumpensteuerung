@@ -60,6 +60,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+
+        // Energieeinsparung
+        $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', 'ZPS.kWh');
     }
 
     public function ApplyChanges(): void
@@ -167,31 +170,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if (!IPS_VariableExists($switchID)) {
             return;
         }
-
+    
+        // Pumpe ausschalten
         RequestAction($switchID, false);
+    
+        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
-
-        // Laufzeit berechnen
-        $start = (int)$this->GetBuffer('RunStart');
-
-        if ($start > 0) {
-            $duration = time() - $start;
-
-            // Gesamtlaufzeit
-            $total = $this->GetValue('TotalRuntime') + $duration;
-            $this->SetValue('TotalRuntime', $total);
-
-            // Stunden
-            $hours = $total / 3600;
-            $this->SetValue('TotalRuntimeHours', round($hours, 2));
-
-            // Energie
-            $power = $this->ReadPropertyFloat('PumpPower');
-            $energy = ($power / 1000) * $hours;
-
-            $this->SetValue('EstimatedEnergy', round($energy, 3));
-        }
-
+    
+        // 🔧 Ausgelagerte Logik
+        $this->UpdateRuntime();
+        $this->UpdateEnergy();
+        $this->UpdateSavings();
+    
+        // Status setzen
         $this->SetValue('Active', false);
     }
 
@@ -237,5 +228,57 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return ($hour >= $start || $hour < $end);
         }
         return ($hour >= $start && $hour < $end);
+    }
+
+    private function UpdateSavings(): void
+    {
+        $installTime = (int)$this->GetBuffer('InstallTime');
+    
+        if ($installTime <= 0) {
+            return;
+        }
+    
+        $runtimeSeconds = time() - $installTime;
+        $runtimeHoursTotal = $runtimeSeconds / 3600;
+    
+        $power = $this->ReadPropertyFloat('PumpPower');
+    
+        $fullEnergy = ($power / 1000) * $runtimeHoursTotal;
+        $realEnergy = $this->GetValue('EstimatedEnergy');
+    
+        $saved = $fullEnergy - $realEnergy;
+    
+        if ($saved < 0) {
+            $saved = 0;
+        }
+    
+        $this->SetValue('SavedEnergy', round($saved, 3));
+    }
+
+    private function UpdateEnergy(): void
+    {
+        $hours = $this->GetValue('TotalRuntimeHours');
+        $power = $this->ReadPropertyFloat('PumpPower');
+    
+        $energy = ($power / 1000) * $hours;
+    
+        $this->SetValue('EstimatedEnergy', round($energy, 3));
+    }
+
+    private function UpdateRuntime(): void
+    {
+        $start = (int)$this->GetBuffer('RunStart');
+    
+        if ($start <= 0) {
+            return;
+        }
+    
+        $duration = time() - $start;
+    
+        $total = $this->GetValue('TotalRuntime') + $duration;
+        $this->SetValue('TotalRuntime', $total);
+    
+        $hours = $total / 3600;
+        $this->SetValue('TotalRuntimeHours', round($hours, 2));
     }
 }
