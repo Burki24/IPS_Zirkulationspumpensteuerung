@@ -146,9 +146,9 @@
             "caption": "⚠ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!"
         },
         {
-    "type": "ExpansionPanel",
-    "caption": "Statistik zurücksetzen",
-    "items": [
+            "type": "ExpansionPanel",
+            "caption": "Statistik zurücksetzen",
+            "items": [
         {
             "type": "Label",
             "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden!"
@@ -185,6 +185,8 @@
             "type": "Button",
             "caption": "ALLES JETZT zurücksetzen",
             "onClick": "ZPS_ResetAll($id);"
+        }
+            ]
         }
     ]
 }
