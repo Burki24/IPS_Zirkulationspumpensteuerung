@@ -134,7 +134,7 @@
         {
             "type": "NumberSpinner",
             "name": "EnergyPrice",
-            "caption": "Strompreis (€/kWh)"
+            "caption": "Strompreis (€/kWh)",
             "digits": 3
         }
     ]
