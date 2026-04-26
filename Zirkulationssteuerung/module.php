@@ -38,10 +38,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
         // Sperrzeit
         $this->RegisterPropertyInteger('LockTime', 600);
 
+        // Verbrauch
+        $this->RegisterPropertyFloat('PumpPower', 30.0); // Watt
+
         // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
+
+        $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
+        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', '~Float');
+        $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
@@ -138,8 +145,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
+        $this->SetBuffer('RunStart', (string)$now);
 
-        // IPSModuleStrict korrekt
+        // Status setzen (Strict korrekt)
         $this->SetValue('LastRun', $now);
         $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
         $this->SetValue('Active', true);
@@ -155,6 +163,27 @@ class Zirkulationssteuerung extends IPSModuleStrict
         RequestAction($switchID, false);
         $this->SetTimerInterval('OffTimer', 0);
 
+        // Laufzeit berechnen
+        $start = (int)$this->GetBuffer('RunStart');
+
+        if ($start > 0) {
+            $duration = time() - $start;
+
+            // Gesamtlaufzeit
+            $total = $this->GetValue('TotalRuntime') + $duration;
+            $this->SetValue('TotalRuntime', $total);
+
+            // Stunden
+            $hours = $total / 3600;
+            $this->SetValue('TotalRuntimeHours', round($hours, 2));
+
+            // Energie
+            $power = $this->ReadPropertyFloat('PumpPower');
+            $energy = ($power / 1000) * $hours;
+
+            $this->SetValue('EstimatedEnergy', round($energy, 3));
+        }
+
         $this->SetValue('Active', false);
     }
 
@@ -163,20 +192,21 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $runtime = $this->ReadPropertyInteger('Runtime');
         $hour = (int)date('G');
 
-        // Zeitfenster
         if ($this->ReadPropertyBoolean('UseTimeControl')) {
 
-            if ($this->IsInTimeRange($hour,
+            if ($this->IsInTimeRange(
+                $hour,
                 $this->ReadPropertyInteger('TimeStart1'),
-                $this->ReadPropertyInteger('TimeEnd1'))) {
-
+                $this->ReadPropertyInteger('TimeEnd1')
+            )) {
                 $runtime = $this->ReadPropertyInteger('Runtime1');
             }
 
-            if ($this->IsInTimeRange($hour,
+            if ($this->IsInTimeRange(
+                $hour,
                 $this->ReadPropertyInteger('TimeStart2'),
-                $this->ReadPropertyInteger('TimeEnd2'))) {
-
+                $this->ReadPropertyInteger('TimeEnd2')
+            )) {
                 $runtime = $this->ReadPropertyInteger('Runtime2');
             }
         }
@@ -186,7 +216,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $warmWindow = $this->ReadPropertyInteger('WarmWindow');
 
         if ($lastRun > 0 && (time() - $lastRun) < $warmWindow) {
-
             $reduction = $this->ReadPropertyInteger('WarmReduction');
             $runtime = (int)round($runtime * (1 - $reduction / 100));
         }
