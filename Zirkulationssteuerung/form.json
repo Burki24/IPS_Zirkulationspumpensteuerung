@@ -136,6 +136,31 @@
             "name": "EnergyPrice",
             "caption": "Strompreis (€/kWh)",
             "digits": 3
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Statistik zurücksetzen",
+            "items": [
+        {
+            "type": "Label",
+            "caption": "⚠ Achtung: Diese Aktion kann nicht rückgängig gemacht werden!"
+        },
+        {
+            "type": "Button",
+            "caption": "Nur Tageswerte zurücksetzen",
+            "onClick": "if (confirm('Nur Tageswerte wirklich zurücksetzen?')) ZPS_ResetDaily($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Nur Gesamtwerte zurücksetzen",
+            "onClick": "if (confirm('Nur Gesamtwerte wirklich zurücksetzen?')) ZPS_ResetTotal($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "ALLES zurücksetzen",
+            "onClick": "if (confirm('Wirklich ALLE Statistiken löschen?')) ZPS_ResetAll($id);"
         }
+    ]
+}
     ]
 }
