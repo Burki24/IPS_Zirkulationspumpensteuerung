@@ -286,7 +286,9 @@ if ($this->GetBuffer('InstallTime') === '') {
 
     private function UpdateEnergy(): void
     {
-        $hours = $this->GetValue('TotalRuntimeHours');
+        $totalSeconds = $this->GetValue('TotalRuntime');
+        $hours = $totalSeconds / 3600;
+    
         $power = $this->ReadPropertyFloat('PumpPower');
     
         $energy = ($power / 1000) * $hours;
