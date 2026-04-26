@@ -70,6 +70,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
+
+// NEU: Installationszeit einmalig setzen
+if ($this->GetBuffer('InstallTime') === '') {
+    $installTime = time();
+    $this->SetBuffer('InstallTime', (string)$installTime);
+
+    // OPTIONAL: als Variable anzeigen (Debug / Transparenz)
+    $this->RegisterVariableInteger('InstallTime', 'Installationszeit', '~UnixTimestamp');
+    $this->SetValue('InstallTime', $installTime);
+}
     }
 
     public function ApplyChanges(): void
@@ -247,11 +257,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         $installTime = (int)$this->GetBuffer('InstallTime');
     
+        // FIX: Fallback falls Buffer fehlt
         if ($installTime <= 0) {
-            return;
+            $installTime = time();
+            $this->SetBuffer('InstallTime', (string)$installTime);
         }
     
         $runtimeSeconds = time() - $installTime;
+        if ($runtimeSeconds < 0) {
+            $runtimeSeconds = 0;
+        }
+    
         $runtimeHoursTotal = $runtimeSeconds / 3600;
     
         $power = $this->ReadPropertyFloat('PumpPower');
@@ -334,27 +350,29 @@ class Zirkulationssteuerung extends IPSModuleStrict
         // Einsparung
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
         $installTime = (int)$this->GetBuffer('InstallTime');
-        
+    
+        // FIX: Fallback
         if ($installTime <= 0) {
             $installTime = time();
+            $this->SetBuffer('InstallTime', (string)$installTime);
         }
-        
+    
         $startTime = max($todayStart, $installTime);
-        
+    
         $elapsedSeconds = time() - $startTime;
         if ($elapsedSeconds < 0) {
             $elapsedSeconds = 0;
         }
-        
+    
         $elapsedHours = $elapsedSeconds / 3600;
-        
+    
         $fullEnergy = ($power / 1000) * $elapsedHours;
         $saved = $fullEnergy - $energy;
-        
+    
         if ($saved < 0) {
             $saved = 0;
         }
-        
+    
         $this->SetValue('DailySavings', round($saved, 3));
     }
 }
