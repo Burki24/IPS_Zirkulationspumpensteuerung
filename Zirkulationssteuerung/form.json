@@ -111,8 +111,8 @@
             "caption": "Laufzeit Reduktion (%)"
         },
         {
-        "type": "Label",
-        "caption": "Verbrauchsberechnung"
+            "type": "Label",
+            "caption": "Verbrauchsberechnung"
         },
         {
             "type": "Label",
@@ -122,6 +122,19 @@
             "type": "NumberSpinner",
             "name": "PumpPower",
             "caption": "Leistung (Watt)"
+        },
+        {
+            "type": "Label",
+            "caption": "Stromkosten"
+        },
+        {
+            "type": "Label",
+            "caption": "Hier kann der aktuelle Strompreis eingetragen werden, um die Kosten und Einsparungen zu berechnen."
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "EnergyPrice",
+            "caption": "Strompreis (€/kWh)"
         }
     ]
 }
