@@ -23,18 +23,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyInteger('NightStart', 22);
         $this->RegisterPropertyInteger('NightEnd', 6);
 
-        // Statusvariablen
+        // Statusvariablen (KEINE EnableAction!)
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // 🔥 WICHTIG für IPSModuleStrict
-        $this->EnableAction('LastRun');
-        $this->EnableAction('RunCount');
-        $this->EnableAction('Active');
-
         // Timer
-        $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
+        $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+        $this->RegisterTimer('DeferredWrite', 0, 'ZPS_DoWrite($_IPS["TARGET"]);');
     }
 
     public function ApplyChanges(): void
@@ -43,8 +39,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
-
-        $this->SendDebug('ApplyChanges', "BathID: $bathID | KitchenID: $kitchenID", 0);
 
         if ($bathID > 0 && IPS_VariableExists($bathID)) {
             $this->RegisterMessage($bathID, VM_UPDATE);
@@ -62,7 +56,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
 
         $value = GetValue($SenderID);
-        $this->SendDebug('MessageSink', "ID: $SenderID | Wert: $value", 0);
 
         if (!(bool)$value) {
             return;
@@ -72,13 +65,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
         if ($SenderID === $bathID) {
-            $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
 
         if ($SenderID === $kitchenID) {
-            $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
         }
     }
@@ -99,13 +90,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetBuffer('KitchenEvents', json_encode($events));
 
-        $count = count($events);
-        $needed = $this->ReadPropertyInteger('TriggerCount');
-
-        $this->SendDebug('Küche', "Events: $count / $needed", 0);
-
-        if ($count >= $needed) {
-            $this->SendDebug('Küche', 'Trigger ausgelöst', 0);
+        if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
             $this->TrySwitchOn();
             $this->SetBuffer('KitchenEvents', json_encode([]));
         }
@@ -117,7 +102,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $lockTime = $this->ReadPropertyInteger('LockTime');
 
         if ($lastRun > 0 && (time() - $lastRun) < $lockTime) {
-            $this->SendDebug('Lock', 'Sperrzeit aktiv', 0);
             return;
         }
 
@@ -133,7 +117,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
 
         $runtime = $this->GetRuntime();
-        $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
 
         RequestAction($switchID, true);
 
@@ -142,10 +125,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
-        // 🔥 Alles über RequestAction!
-        $this->RequestAction('LastRun', $now);
-        $this->RequestAction('RunCount', GetValue($this->GetIDForIdent('RunCount')) + 1);
-        $this->RequestAction('Active', true);
+        // Werte vorbereiten (NICHT direkt schreiben!)
+        $this->SetBuffer('PendingLastRun', (string)$now);
+        $this->SetBuffer('PendingIncrement', '1');
+        $this->SetBuffer('PendingActive', '1');
+
+        // Entkoppelt schreiben
+        $this->SetTimerInterval('DeferredWrite', 1);
     }
 
     public function SwitchOff(): void
@@ -156,30 +142,45 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
 
-        $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
-
         RequestAction($switchID, false);
 
         $this->SetTimerInterval('OffTimer', 0);
 
-        $this->RequestAction('Active', false);
+        $this->SetBuffer('PendingActive', '0');
+
+        // Entkoppelt schreiben
+        $this->SetTimerInterval('DeferredWrite', 1);
     }
 
-    public function RequestAction(string $Ident, mixed $Value): void
+    public function DoWrite(): void
     {
-        switch ($Ident) {
+        // Timer stoppen
+        $this->SetTimerInterval('DeferredWrite', 0);
 
-            case 'SwitchOff':
-                $this->SwitchOff();
-                break;
+        $lastRun = (int)$this->GetBuffer('PendingLastRun');
+        $increment = $this->GetBuffer('PendingIncrement') === '1';
+        $activeBuffer = $this->GetBuffer('PendingActive');
 
-            case 'LastRun':
-            case 'RunCount':
-            case 'Active':
-                // 🔥 EINZIG erlaubter Schreibpunkt
-                SetValue($this->GetIDForIdent($Ident), $Value);
-                break;
+        $lastRunID = $this->GetIDForIdent('LastRun');
+        $runCountID = $this->GetIDForIdent('RunCount');
+        $activeID = $this->GetIDForIdent('Active');
+
+        if ($lastRunID > 0 && $lastRun > 0) {
+            SetValue($lastRunID, $lastRun);
         }
+
+        if ($runCountID > 0 && $increment) {
+            SetValue($runCountID, GetValue($runCountID) + 1);
+        }
+
+        if ($activeID > 0 && $activeBuffer !== '') {
+            SetValue($activeID, $activeBuffer === '1');
+        }
+
+        // Buffer löschen
+        $this->SetBuffer('PendingLastRun', '');
+        $this->SetBuffer('PendingIncrement', '');
+        $this->SetBuffer('PendingActive', '');
     }
 
     private function GetRuntime(): int
