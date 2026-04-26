@@ -206,6 +206,9 @@ if ($this->GetBuffer('InstallTime') === '') {
     
         // Tageswerte
         $this->UpdateDaily();
+
+        // NEU: Kosten berechnen
+        $this->UpdateCosts();
     
         // Status
         $this->SetValue('Active', false);
