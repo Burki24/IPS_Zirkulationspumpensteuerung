@@ -368,4 +368,47 @@ class Zirkulationssteuerung extends IPSModuleStrict
             round($this->GetValue('DailyCostAccumulated') + $cost, 2)
         );
     }
+    // Reset der gespeicherten Werte
+
+    public function ResetDaily(): void
+    {
+        $this->SetValue('DailyRuntime', 0);
+        $this->SetValue('DailyEnergy', 0.0);
+        $this->SetValue('DailySavings', 0.0);
+        $this->SetValue('DailyCost', 0.0);
+        $this->SetValue('DailyCostAccumulated', 0.0);
+    
+        $this->SetBuffer('LastDay', date('Y-m-d'));
+    
+        $this->SendDebug('Reset', 'Tageswerte zurückgesetzt', 0);
+    }
+
+    public function ResetTotal(): void
+    {
+        $this->SetValue('TotalRuntime', 0);
+        $this->SetValue('TotalRuntimeHours', 0.0);
+    
+        $this->SetValue('EstimatedEnergy', 0.0);
+        $this->SetValue('SavedEnergy', 0.0);
+    
+        $this->SetValue('EnergyCost', 0.0);
+        $this->SetValue('EnergyCostAccumulated', 0.0);
+    
+        $this->SendDebug('Reset', 'Gesamtwerte zurückgesetzt', 0);
+    }
+
+    public function ResetAll(): void
+    {
+        $this->ResetDaily();
+        $this->ResetTotal();
+    
+        // zusätzliche Werte
+        $this->SetValue('RunCount', 0);
+        $this->SetValue('LastRun', 0);
+    
+        $this->SetBuffer('RunStart', '');
+        $this->SetBuffer('KitchenEvents', '[]');
+    
+        $this->SendDebug('Reset', 'ALLE Werte zurückgesetzt', 0);
+    }
 }
