@@ -160,7 +160,7 @@
                         {
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
-                            "enabled": "@ZPS_IsResetStillValid($id, 'daily')",
+                            "visible": "@ZPS_IsResetStillValid($id, 'daily')",
                             "onClick": "ZPS_ResetDaily($id);"
                         }
                     ]
@@ -177,7 +177,7 @@
                         {
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
-                            "enabled": "@ZPS_IsResetStillValid($id, 'total')",
+                            "visible": "@ZPS_IsResetStillValid($id, 'total')",
                             "onClick": "ZPS_ResetTotal($id);"
                         }
                     ]
@@ -194,7 +194,7 @@
                         {
                             "type": "Button",
                             "caption": "JETZT ALLES löschen",
-                            "enabled": "@ZPS_IsResetStillValid($id, 'all')",
+                            "visible": "@ZPS_IsResetStillValid($id, 'all')",
                             "onClick": "ZPS_ResetAll($id);"
                         }
                     ]
