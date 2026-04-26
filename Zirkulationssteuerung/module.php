@@ -28,6 +28,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
+        // 🔥 WICHTIG für IPSModuleStrict
+        $this->EnableAction('LastRun');
+        $this->EnableAction('RunCount');
+        $this->EnableAction('Active');
+
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
     }
@@ -124,7 +129,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $switchID = $this->ReadPropertyInteger('SwitchID');
 
         if (!IPS_VariableExists($switchID)) {
-            $this->SendDebug('SwitchOn', 'SwitchID ungültig', 0);
             return;
         }
 
@@ -133,21 +137,15 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         RequestAction($switchID, true);
 
-        // Abschalt-Timer
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
-        // Werte puffern
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
-        $this->SetBuffer('PendingValues', json_encode([
-            'lastRun'   => $now,
-            'increment' => true,
-            'active'    => true
-        ]));
-
-        // Kontextwechsel
-        IPS_RunScriptText('IPS_RequestAction(' . $this->InstanceID . ', "ApplyPending", 0);');
+        // 🔥 Alles über RequestAction!
+        $this->RequestAction('LastRun', $now);
+        $this->RequestAction('RunCount', GetValue($this->GetIDForIdent('RunCount')) + 1);
+        $this->RequestAction('Active', true);
     }
 
     public function SwitchOff(): void
@@ -164,51 +162,22 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetTimerInterval('OffTimer', 0);
 
-        // Werte puffern
-        $this->SetBuffer('PendingValues', json_encode([
-            'active' => false
-        ]));
-
-        IPS_RunScriptText('IPS_RequestAction(' . $this->InstanceID . ', "ApplyPending", 0);');
-    }
-
-    private function ApplyPending(): void
-    {
-        $data = json_decode($this->GetBuffer('PendingValues'), true);
-
-        if (!is_array($data)) {
-            return;
-        }
-
-        $lastRunID = $this->GetIDForIdent('LastRun');
-        $runCountID = $this->GetIDForIdent('RunCount');
-        $activeID = $this->GetIDForIdent('Active');
-
-        if ($lastRunID > 0 && isset($data['lastRun'])) {
-            SetValue($lastRunID, $data['lastRun']);
-        }
-
-        if ($runCountID > 0 && !empty($data['increment'])) {
-            SetValue($runCountID, GetValue($runCountID) + 1);
-        }
-
-        if ($activeID > 0 && isset($data['active'])) {
-            SetValue($activeID, $data['active']);
-        }
-
-        // Buffer leeren
-        $this->SetBuffer('PendingValues', '');
+        $this->RequestAction('Active', false);
     }
 
     public function RequestAction(string $Ident, mixed $Value): void
     {
         switch ($Ident) {
+
             case 'SwitchOff':
                 $this->SwitchOff();
                 break;
 
-            case 'ApplyPending':
-                $this->ApplyPending();
+            case 'LastRun':
+            case 'RunCount':
+            case 'Active':
+                // 🔥 EINZIG erlaubter Schreibpunkt
+                SetValue($this->GetIDForIdent($Ident), $Value);
                 break;
         }
     }
