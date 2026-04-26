@@ -28,11 +28,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
+        // 👉 WICHTIG: Schreibbar machen
+        $this->DisableAction('LastRun');
+        $this->DisableAction('RunCount');
+        $this->DisableAction('Active');
+
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
-
-        // 🔥 Deferred Timer (Fix für VM_UPDATE Problem)
-        $this->RegisterTimer('SwitchOnDeferred', 0, 'ZPS_ExecuteSwitchOn($_IPS["TARGET"]);');
     }
 
     public function ApplyChanges(): void
@@ -69,12 +71,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
+        // Bad → sofort
         if ($SenderID === $bathID) {
             $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
 
+        // Küche → Mustererkennung
         if ($SenderID === $kitchenID) {
             $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
@@ -92,9 +96,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
 
+        // alte Events löschen
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
-        $events[] = $now;
 
+        $events[] = $now;
         $this->SetBuffer('KitchenEvents', json_encode($events));
 
         $count = count($events);
@@ -122,21 +127,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SwitchOn();
     }
 
-    // 🔥 WICHTIG: nur noch Trigger!
     public function SwitchOn(): void
-    {
-        $this->SetTimerInterval('SwitchOnDeferred', 1);
-    }
-
-    // 🔥 Deferred Ausführung
-    public function ExecuteSwitchOn(): void
-    {
-        $this->SetTimerInterval('SwitchOnDeferred', 0);
-        $this->SwitchOnInternal();
-    }
-
-    // 🔥 Eigentliche Logik (jetzt safe)
-    private function SwitchOnInternal(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
 
@@ -148,18 +139,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $runtime = $this->GetRuntime();
         $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
 
+        // Pumpe EIN
         RequestAction($switchID, true);
 
+        // Abschalt-Timer
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
+        // Status setzen
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
         $lastRunID = $this->GetIDForIdent('LastRun');
         $runCountID = $this->GetIDForIdent('RunCount');
         $activeID = $this->GetIDForIdent('Active');
-
-        $this->SendDebug('IDs', "LastRun: $lastRunID | RunCount: $runCountID | Active: $activeID", 0);
 
         if ($lastRunID > 0) {
             SetValue($lastRunID, $now);
@@ -185,10 +177,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
 
+        // Pumpe AUS
         RequestAction($switchID, false);
 
+        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
 
+        // Status zurücksetzen
         $activeID = $this->GetIDForIdent('Active');
 
         if ($activeID > 0) {
@@ -201,10 +196,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         switch ($Ident) {
             case 'SwitchOff':
                 $this->SwitchOff();
-                break;
-
-            case 'ExecuteSwitchOn':
-                $this->ExecuteSwitchOn();
                 break;
         }
     }
