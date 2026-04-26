@@ -481,7 +481,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->ReloadForm();
     }
 
-    private function IsResetStillValid(string $type): bool
+    public function IsResetStillValid(string $type): bool
     {
         if ($this->GetBuffer('ResetArmed') !== $type) {
             return false;
