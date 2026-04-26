@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../libs/VariableProfileHelper.php';
+
 class Zirkulationssteuerung extends IPSModuleStrict
 {
+
+    use VariableProfileHelper;
+    
     public function Create(): void
     {
         parent::Create();
@@ -47,7 +52,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
         $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
-        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', '~Float');
+        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
         $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
 
         // Timer
@@ -57,6 +62,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+
+        // Profile erstellen
+        $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
