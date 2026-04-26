@@ -491,4 +491,22 @@ class Zirkulationssteuerung extends IPSModuleStrict
     
         return (time() - $time) <= 10;
     }
+
+    public function GetResetStatus(): string
+    {
+        $armed = $this->GetBuffer('ResetArmed');
+    
+        if ($armed === '') {
+            return "🔴 Kein Reset aktiv";
+        }
+    
+        $time = (int)$this->GetBuffer('ResetArmedTime');
+        $remaining = 10 - (time() - $time);
+    
+        if ($remaining <= 0) {
+            return "⚪ Reset abgelaufen";
+        }
+    
+        return "🟡 Reset aktiv: " . strtoupper($armed) . " (" . $remaining . "s)";
+    }
 }
