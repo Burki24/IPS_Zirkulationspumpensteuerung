@@ -54,6 +54,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
+        // Kalkulationsvariablen
+        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute (Sekunden)', '');
+        $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
+        $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
         $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
         $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
         $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
@@ -61,6 +65,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+
+        // Initialisiert den Tagespuffer beim ersten Start, damit der Tageswechsel korrekt erkannt werden kann
+        if ($this->GetBuffer('LastDay') === '') {
+            $this->SetBuffer('LastDay', date('Y-m-d'));
+        }
     }
 
     public function ApplyChanges(): void
@@ -169,19 +178,25 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
     
-        // Pumpe ausschalten
         RequestAction($switchID, false);
-    
-        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
     
-        // 🔧 Ausgelagerte Logik
+        // Tageswechsel prüfen
+        $this->CheckDailyReset();
+    
+        // Gesamtwerte
         $this->UpdateRuntime();
         $this->UpdateEnergy();
         $this->UpdateSavings();
     
-        // Status setzen
+        // Tageswerte
+        $this->UpdateDaily();
+    
+        // Status
         $this->SetValue('Active', false);
+    
+        // Optional sauber resetten
+        $this->SetBuffer('RunStart', '');
     }
 
     private function GetRuntime(): int
@@ -278,5 +293,52 @@ class Zirkulationssteuerung extends IPSModuleStrict
     
         $hours = $total / 3600;
         $this->SetValue('TotalRuntimeHours', round($hours, 2));
+    }
+
+    private function CheckDailyReset(): void
+    {
+        $today = date('Y-m-d');
+        $lastDay = $this->GetBuffer('LastDay');
+    
+        if ($lastDay !== $today) {
+    
+            // Reset Tageswerte
+            $this->SetValue('DailyRuntime', 0);
+            $this->SetValue('DailyEnergy', 0.0);
+            $this->SetValue('DailySavings', 0.0);
+    
+            $this->SetBuffer('LastDay', $today);
+        }
+    }
+
+    private function UpdateDaily(): void
+    {
+        $start = (int)$this->GetBuffer('RunStart');
+        if ($start <= 0) {
+            return;
+        }
+    
+        $duration = time() - $start;
+    
+        // Laufzeit
+        $dailyRuntime = $this->GetValue('DailyRuntime') + $duration;
+        $this->SetValue('DailyRuntime', $dailyRuntime);
+    
+        // Energie
+        $hours = $dailyRuntime / 3600;
+        $power = $this->ReadPropertyFloat('PumpPower');
+    
+        $energy = ($power / 1000) * $hours;
+        $this->SetValue('DailyEnergy', round($energy, 3));
+    
+        // Einsparung
+        $fullEnergy = ($power / 1000) * 24; // Dauerbetrieb pro Tag
+        $saved = $fullEnergy - $energy;
+    
+        if ($saved < 0) {
+            $saved = 0;
+        }
+    
+        $this->SetValue('DailySavings', round($saved, 3));
     }
 }
