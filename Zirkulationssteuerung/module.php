@@ -28,11 +28,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // 👉 WICHTIG: Schreibbar machen
-        $this->DisableAction('LastRun');
-        $this->DisableAction('RunCount');
-        $this->DisableAction('Active');
-
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
     }
@@ -71,14 +66,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
 
-        // Bad → sofort
         if ($SenderID === $bathID) {
             $this->SendDebug('Trigger', 'Bad erkannt', 0);
             $this->TrySwitchOn();
             return;
         }
 
-        // Küche → Mustererkennung
         if ($SenderID === $kitchenID) {
             $this->SendDebug('Trigger', 'Küche erkannt', 0);
             $this->HandleKitchenMotion();
@@ -96,10 +89,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
 
-        // alte Events löschen
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
-
         $events[] = $now;
+
         $this->SetBuffer('KitchenEvents', json_encode($events));
 
         $count = count($events);
@@ -139,32 +131,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $runtime = $this->GetRuntime();
         $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
 
-        // Pumpe EIN
         RequestAction($switchID, true);
 
         // Abschalt-Timer
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
-        // Status setzen
+        // Werte puffern
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
-        $lastRunID = $this->GetIDForIdent('LastRun');
-        $runCountID = $this->GetIDForIdent('RunCount');
-        $activeID = $this->GetIDForIdent('Active');
+        $this->SetBuffer('PendingValues', json_encode([
+            'lastRun'   => $now,
+            'increment' => true,
+            'active'    => true
+        ]));
 
-        if ($lastRunID > 0) {
-            SetValue($lastRunID, $now);
-        }
-
-        if ($runCountID > 0) {
-            $count = GetValue($runCountID);
-            SetValue($runCountID, $count + 1);
-        }
-
-        if ($activeID > 0) {
-            SetValue($activeID, true);
-        }
+        // Kontextwechsel
+        IPS_RunScriptText('IPS_RequestAction(' . $this->InstanceID . ', "ApplyPending", 0);');
     }
 
     public function SwitchOff(): void
@@ -177,18 +160,44 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
 
-        // Pumpe AUS
         RequestAction($switchID, false);
 
-        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
 
-        // Status zurücksetzen
+        // Werte puffern
+        $this->SetBuffer('PendingValues', json_encode([
+            'active' => false
+        ]));
+
+        IPS_RunScriptText('IPS_RequestAction(' . $this->InstanceID . ', "ApplyPending", 0);');
+    }
+
+    private function ApplyPending(): void
+    {
+        $data = json_decode($this->GetBuffer('PendingValues'), true);
+
+        if (!is_array($data)) {
+            return;
+        }
+
+        $lastRunID = $this->GetIDForIdent('LastRun');
+        $runCountID = $this->GetIDForIdent('RunCount');
         $activeID = $this->GetIDForIdent('Active');
 
-        if ($activeID > 0) {
-            SetValue($activeID, false);
+        if ($lastRunID > 0 && isset($data['lastRun'])) {
+            SetValue($lastRunID, $data['lastRun']);
         }
+
+        if ($runCountID > 0 && !empty($data['increment'])) {
+            SetValue($runCountID, GetValue($runCountID) + 1);
+        }
+
+        if ($activeID > 0 && isset($data['active'])) {
+            SetValue($activeID, $data['active']);
+        }
+
+        // Buffer leeren
+        $this->SetBuffer('PendingValues', '');
     }
 
     public function RequestAction(string $Ident, mixed $Value): void
@@ -196,6 +205,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         switch ($Ident) {
             case 'SwitchOff':
                 $this->SwitchOff();
+                break;
+
+            case 'ApplyPending':
+                $this->ApplyPending();
                 break;
         }
     }
