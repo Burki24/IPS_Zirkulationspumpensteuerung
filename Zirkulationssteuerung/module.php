@@ -48,6 +48,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Verbrauch
         $this->RegisterPropertyFloat('PumpPower', 30.0); // Watt
+        $this->RegisterPropertyFloat('EnergyPrice', 0.30); // €/kWh
 
         // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
@@ -62,6 +63,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
         $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
         $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', '~Electricity');
+        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt', '~Euro');
+        $this->RegisterVariableFloat('DailyCost', 'Kosten heute', '~Euro');
+        $this->RegisterVariableFloat('SavedCost', 'Ersparnis gesamt', '~Euro');
+        $this->RegisterVariableFloat('DailySavedCost', 'Ersparnis heute', '~Euro');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
@@ -376,5 +381,24 @@ if ($this->GetBuffer('InstallTime') === '') {
         }
     
         $this->SetValue('DailySavings', round($saved, 3));
+    }
+    
+    private function UpdateCosts(): void
+    {
+        $price = $this->ReadPropertyFloat('EnergyPrice');
+    
+        // Gesamt
+        $energy = $this->GetValue('EstimatedEnergy');
+        $this->SetValue('EnergyCost', round($energy * $price, 2));
+    
+        $saved = $this->GetValue('SavedEnergy');
+        $this->SetValue('SavedCost', round($saved * $price, 2));
+    
+        // Heute
+        $dailyEnergy = $this->GetValue('DailyEnergy');
+        $this->SetValue('DailyCost', round($dailyEnergy * $price, 2));
+    
+        $dailySaved = $this->GetValue('DailySavings');
+        $this->SetValue('DailySavedCost', round($dailySaved * $price, 2));
     }
 }
