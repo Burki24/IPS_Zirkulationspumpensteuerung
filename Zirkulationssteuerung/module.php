@@ -13,6 +13,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::Create();
 
+        // Profile
+        $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
+
         // Geräte
         $this->RegisterPropertyInteger('MotionIDBath', 0);
         $this->RegisterPropertyInteger('MotionIDKitchen', 0);
@@ -62,9 +65,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-
-        // Profile erstellen
-        $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
         $bathID = $this->ReadPropertyInteger('MotionIDBath');
         $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
