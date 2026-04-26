@@ -144,11 +144,17 @@
             "type": "ExpansionPanel",
             "caption": "Statistik zurücksetzen",
             "items": [
+
                 {
                     "type": "Label",
-                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden Zeitfenster)!"
+                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden gültig)!"
                 },
-        
+
+                {
+                    "type": "Label",
+                    "caption": "@ZPS_GetResetStatus($id)"
+                },
+
                 {
                     "type": "RowLayout",
                     "items": [
@@ -158,19 +164,13 @@
                             "onClick": "ZPS_ArmReset($id, 'daily');"
                         },
                         {
-                            "type": "Label",
-                            "caption": "@ZPS_GetResetStatus($id)"
-                        },
-                        {
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
                             "onClick": "ZPS_ResetDaily($id);"
                         }
-                        {
-                        
                     ]
                 },
-        
+
                 {
                     "type": "RowLayout",
                     "items": [
@@ -180,17 +180,13 @@
                             "onClick": "ZPS_ArmReset($id, 'total');"
                         },
                         {
-                            "type": "Label",
-                            "caption": "@ZPS_GetResetStatus($id)"
-                        },
-                        {
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
                             "onClick": "ZPS_ResetTotal($id);"
                         }
                     ]
                 },
-        
+
                 {
                     "type": "RowLayout",
                     "items": [
@@ -198,10 +194,6 @@
                             "type": "Button",
                             "caption": "ALLES aktivieren",
                             "onClick": "ZPS_ArmReset($id, 'all');"
-                        },
-                        {
-                            "type": "Label",
-                            "caption": "@ZPS_GetResetStatus($id)"
                         },
                         {
                             "type": "Button",
