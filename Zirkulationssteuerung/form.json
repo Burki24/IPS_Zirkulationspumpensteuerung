@@ -165,7 +165,7 @@
                             "type": "Button",
                             "caption": "JETZT zurücksetzen",
                             "onClick": "ZPS_ResetDaily($id);"
-                        },
+                        }
                         {
                         
                     ]
