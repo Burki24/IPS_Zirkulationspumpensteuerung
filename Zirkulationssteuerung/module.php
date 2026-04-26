@@ -47,30 +47,34 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyFloat('PumpPower', 30.0);
         $this->RegisterPropertyFloat('EnergyPrice', 0.30);
 
-        // Statusvariablen
+        // Status
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // Berechnung
+        // Statistik
         $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute (Sekunden)', '');
         $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
         $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
+
         $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
         $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
+
         $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
         $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', '~Electricity');
 
-        // Kosten
-        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt', '~Euro');
-        $this->RegisterVariableFloat('DailyCost', 'Kosten heute', '~Euro');
-        $this->RegisterVariableFloat('SavedCost', 'Ersparnis gesamt', '~Euro');
-        $this->RegisterVariableFloat('DailySavedCost', 'Ersparnis heute', '~Euro');
+        // Dynamische Kosten
+        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt (dynamisch)', '~Euro');
+        $this->RegisterVariableFloat('DailyCost', 'Kosten heute (dynamisch)', '~Euro');
+
+        // FIXE Kosten (pro Lauf)
+        $this->RegisterVariableFloat('EnergyCostAccumulated', 'Kosten gesamt', '~Euro');
+        $this->RegisterVariableFloat('DailyCostAccumulated', 'Kosten heute', '~Euro');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
 
-        // Tagesbuffer
+        // Tageswechsel
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
@@ -79,11 +83,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($this->GetBuffer('InstallTime') === '') {
             $installTime = time();
             $this->SetBuffer('InstallTime', (string)$installTime);
+
             $this->RegisterVariableInteger('InstallTime', 'Installationszeit', '~UnixTimestamp');
             $this->SetValue('InstallTime', $installTime);
         }
 
-        // Preis-Buffer
+        // Preis
         if ($this->GetBuffer('LastPrice') === '') {
             $this->SetBuffer('LastPrice', '0');
         }
@@ -104,7 +109,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
             $this->RegisterMessage($kitchenID, VM_UPDATE);
         }
 
-        // Preis-Handling
+        // Preislogik
         $oldPrice = (float)$this->GetBuffer('LastPrice');
         $newPrice = $this->ReadPropertyFloat('EnergyPrice');
 
@@ -118,7 +123,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message !== VM_UPDATE) return;
-
         if (!(bool)GetValue($SenderID)) return;
 
         if ($SenderID === $this->ReadPropertyInteger('MotionIDBath')) {
@@ -190,6 +194,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         RequestAction($switchID, false);
         $this->SetTimerInterval('OffTimer', 0);
 
+        $start = (int)$this->GetBuffer('RunStart');
+
+        if ($start > 0) {
+            $duration = time() - $start;
+            $this->UpdateCostsPerRun($duration);
+        }
+
         $this->CheckDailyReset();
 
         $this->UpdateRuntime();
@@ -250,7 +261,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $total = $this->GetValue('TotalRuntime') + $duration;
         $this->SetValue('TotalRuntime', $total);
-
         $this->SetValue('TotalRuntimeHours', round($total / 3600, 2));
     }
 
@@ -258,7 +268,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         $seconds = $this->GetValue('TotalRuntime');
         $hours = $seconds / 3600;
-
         $power = $this->ReadPropertyFloat('PumpPower');
 
         $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
@@ -289,9 +298,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $today = date('Y-m-d');
 
         if ($this->GetBuffer('LastDay') !== $today) {
+
             $this->SetValue('DailyRuntime', 0);
             $this->SetValue('DailyEnergy', 0.0);
             $this->SetValue('DailySavings', 0.0);
+            $this->SetValue('DailyCostAccumulated', 0.0);
+
             $this->SetBuffer('LastDay', $today);
         }
     }
@@ -336,8 +348,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $price = $this->ReadPropertyFloat('EnergyPrice');
 
         $this->SetValue('EnergyCost', round($this->GetValue('EstimatedEnergy') * $price, 2));
-        $this->SetValue('SavedCost', round($this->GetValue('SavedEnergy') * $price, 2));
         $this->SetValue('DailyCost', round($this->GetValue('DailyEnergy') * $price, 2));
-        $this->SetValue('DailySavedCost', round($this->GetValue('DailySavings') * $price, 2));
+    }
+
+    private function UpdateCostsPerRun(int $durationSeconds): void
+    {
+        $power = $this->ReadPropertyFloat('PumpPower');
+        $price = $this->ReadPropertyFloat('EnergyPrice');
+
+        $hours = $durationSeconds / 3600;
+        $energy = ($power / 1000) * $hours;
+        $cost = $energy * $price;
+
+        $this->SetValue('EnergyCostAccumulated',
+            round($this->GetValue('EnergyCostAccumulated') + $cost, 2)
+        );
+
+        $this->SetValue('DailyCostAccumulated',
+            round($this->GetValue('DailyCostAccumulated') + $cost, 2)
+        );
     }
 }
