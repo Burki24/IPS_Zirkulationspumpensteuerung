@@ -332,13 +332,29 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyEnergy', round($energy, 3));
     
         // Einsparung
-        $fullEnergy = ($power / 1000) * 24; // Dauerbetrieb pro Tag
+        $todayStart = strtotime(date('Y-m-d 00:00:00'));
+        $installTime = (int)$this->GetBuffer('InstallTime');
+        
+        if ($installTime <= 0) {
+            $installTime = time();
+        }
+        
+        $startTime = max($todayStart, $installTime);
+        
+        $elapsedSeconds = time() - $startTime;
+        if ($elapsedSeconds < 0) {
+            $elapsedSeconds = 0;
+        }
+        
+        $elapsedHours = $elapsedSeconds / 3600;
+        
+        $fullEnergy = ($power / 1000) * $elapsedHours;
         $saved = $fullEnergy - $energy;
-    
+        
         if ($saved < 0) {
             $saved = 0;
         }
-    
+        
         $this->SetValue('DailySavings', round($saved, 3));
     }
 }
