@@ -140,62 +140,64 @@
             "digits": 3
         },
 
-{
-    "type": "ExpansionPanel",
-    "caption": "Statistik zurücksetzen",
-    "items": [
         {
-            "type": "Label",
-            "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden Zeitfenster)!"
-        },
-
-        {
-            "type": "RowLayout",
+            "type": "ExpansionPanel",
+            "caption": "Statistik zurücksetzen",
             "items": [
                 {
-                    "type": "Button",
-                    "caption": "Tageswerte aktivieren",
-                    "onClick": "ZPS_ArmReset($id, 'daily');"
+                    "type": "Label",
+                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden Zeitfenster)!"
                 },
+        
                 {
-                    "type": "Button",
-                    "caption": "JETZT zurücksetzen",
-                    "enabled": "@ZPS_IsResetStillValid($id, 'daily')",
-                    "onClick": "ZPS_ResetDaily($id);"
-                }
-            ]
-        },
-
-        {
-            "type": "RowLayout",
-            "items": [
-                {
-                    "type": "Button",
-                    "caption": "Gesamtwerte aktivieren",
-                    "onClick": "ZPS_ArmReset($id, 'total');"
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "Button",
+                            "caption": "Tageswerte aktivieren",
+                            "onClick": "ZPS_ArmReset($id, 'daily');"
+                        },
+                        {
+                            "type": "Button",
+                            "caption": "JETZT zurücksetzen",
+                            "enabled": "@ZPS_IsResetStillValid($id, 'daily')",
+                            "onClick": "ZPS_ResetDaily($id);"
+                        }
+                    ]
                 },
+        
                 {
-                    "type": "Button",
-                    "caption": "JETZT zurücksetzen",
-                    "enabled": "@ZPS_IsResetStillValid($id, 'total')",
-                    "onClick": "ZPS_ResetTotal($id);"
-                }
-            ]
-        },
-
-        {
-            "type": "RowLayout",
-            "items": [
-                {
-                    "type": "Button",
-                    "caption": "ALLES aktivieren",
-                    "onClick": "ZPS_ArmReset($id, 'all');"
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "Button",
+                            "caption": "Gesamtwerte aktivieren",
+                            "onClick": "ZPS_ArmReset($id, 'total');"
+                        },
+                        {
+                            "type": "Button",
+                            "caption": "JETZT zurücksetzen",
+                            "enabled": "@ZPS_IsResetStillValid($id, 'total')",
+                            "onClick": "ZPS_ResetTotal($id);"
+                        }
+                    ]
                 },
+        
                 {
-                    "type": "Button",
-                    "caption": "JETZT ALLES löschen",
-                    "enabled": "@ZPS_IsResetStillValid($id, 'all')",
-                    "onClick": "ZPS_ResetAll($id);"
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "Button",
+                            "caption": "ALLES aktivieren",
+                            "onClick": "ZPS_ArmReset($id, 'all');"
+                        },
+                        {
+                            "type": "Button",
+                            "caption": "JETZT ALLES löschen",
+                            "enabled": "@ZPS_IsResetStillValid($id, 'all')",
+                            "onClick": "ZPS_ResetAll($id);"
+                        }
+                    ]
                 }
             ]
         }
