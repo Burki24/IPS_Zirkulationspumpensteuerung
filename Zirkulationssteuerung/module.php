@@ -73,6 +73,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+        $this->RegisterTimer('ResetTimeout', 0, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
 
         // Tageswechsel
         if ($this->GetBuffer('LastDay') === '') {
@@ -373,11 +374,35 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function ArmReset(string $type): void
     {
         $this->SetBuffer('ResetArmed', $type);
+        $this->SetBuffer('ResetArmedTime', (string)time());
+    
+        // Timer starten (10 Sekunden)
+        $this->RegisterTimer('ResetTimeout', 10000, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
+    
+        $this->ReloadForm();
+    
         $this->SendDebug('Reset', "Reset vorbereitet: $type", 0);
     }
+
+    public function ResetTimeout(): void
+    {
+        $this->SetBuffer('ResetArmed', '');
+        $this->SetBuffer('ResetArmedTime', '');
     
+        // Timer stoppen
+        $this->SetTimerInterval('ResetTimeout', 0);
+    
+        $this->ReloadForm();
+    
+        $this->SendDebug('Reset', 'Reset automatisch zurückgesetzt (Timeout)', 0);
+    }
+
     public function ResetDaily(): void
     {
+        if (!$this->IsResetStillValid('daily')) {
+            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
+            return;
+        }
         if ($this->GetBuffer('ResetArmed') !== 'daily') {
             $this->SendDebug('Reset', 'Daily Reset nicht bestätigt', 0);
             return;
@@ -392,12 +417,20 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyCostAccumulated', 0.0);
     
         $this->SetBuffer('LastDay', date('Y-m-d'));
+        $this->SetBuffer('ResetArmed', '');
+        $this->SetBuffer('ResetArmedTime', '');
+        $this->SetTimerInterval('ResetTimeout', 0);
+        $this->ReloadForm();
     
         $this->SendDebug('Reset', 'Tageswerte zurückgesetzt', 0);
     }
 
     public function ResetTotal(): void
     {
+        if (!$this->IsResetStillValid('daily')) {
+            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
+            return;
+        }
         if ($this->GetBuffer('ResetArmed') !== 'total') {
             $this->SendDebug('Reset', 'Total Reset nicht bestätigt', 0);
             return;
@@ -411,12 +444,20 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('SavedEnergy', 0.0);
         $this->SetValue('EnergyCost', 0.0);
         $this->SetValue('EnergyCostAccumulated', 0.0);
+        $this->SetBuffer('ResetArmed', '');
+        $this->SetBuffer('ResetArmedTime', '');
+        $this->SetTimerInterval('ResetTimeout', 0);
+        $this->ReloadForm();
     
         $this->SendDebug('Reset', 'Gesamtwerte zurückgesetzt', 0);
     }
 
     public function ResetAll(): void
     {
+        if (!$this->IsResetStillValid('daily')) {
+            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
+            return;
+        }
         if ($this->GetBuffer('ResetArmed') !== 'all') {
             $this->SendDebug('Reset', 'ResetAll nicht bestätigt', 0);
             return;
@@ -434,5 +475,20 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('KitchenEvents', '[]');
     
         $this->SendDebug('Reset', 'ALLE Werte zurückgesetzt', 0);
+        $this->SetBuffer('ResetArmed', '');
+        $this->SetBuffer('ResetArmedTime', '');
+        $this->SetTimerInterval('ResetTimeout', 0);
+        $this->ReloadForm();
+    }
+
+    private function IsResetStillValid(string $type): bool
+    {
+        if ($this->GetBuffer('ResetArmed') !== $type) {
+            return false;
+        }
+    
+        $time = (int)$this->GetBuffer('ResetArmedTime');
+    
+        return (time() - $time) <= 10;
     }
 }
