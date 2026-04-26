@@ -25,11 +25,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
-        $this->EnableAction('LastRun');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
-        $this->EnableAction('RunCount');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
-        $this->EnableAction('Active');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
@@ -154,16 +151,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
     
         // Werte setzen über RequestAction (wichtig bei EnableAction!)
         if ($lastRunID > 0) {
-            $this->RequestAction('LastRun', $now);
+            SetValue($lastRunID, $now);
         }
     
         if ($runCountID > 0) {
             $count = GetValue($runCountID);
-            $this->RequestAction('RunCount', $count + 1);
+            SetValue($runCountID, $count + 1);
         }
     
         if ($activeID > 0) {
-            $this->RequestAction('Active', true);
+            SetValue($activeID, true);
         }
     }
     
@@ -177,7 +174,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
     
         $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
     
-        RequestAction($switchID, false);
+        SetValue($activeID, false);
     
         // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
@@ -195,12 +192,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         switch ($Ident) {
             case 'SwitchOff':
                 $this->SwitchOff();
-                break;
-    
-            case 'LastRun':
-            case 'RunCount':
-            case 'Active':
-                SetValue($this->GetIDForIdent($Ident), $Value);
                 break;
         }
     }
