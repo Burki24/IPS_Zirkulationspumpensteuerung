@@ -427,7 +427,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function ResetTotal(): void
     {
-        if (!$this->IsResetStillValid('daily')) {
+        if (!$this->IsResetStillValid('total')) {
             $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
             return;
         }
@@ -454,7 +454,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function ResetAll(): void
     {
-        if (!$this->IsResetStillValid('daily')) {
+        if (!$this->IsResetStillValid('all')) {
             $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
             return;
         }
