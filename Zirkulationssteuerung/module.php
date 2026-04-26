@@ -368,10 +368,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
             round($this->GetValue('DailyCostAccumulated') + $cost, 2)
         );
     }
-    // Reset der gespeicherten Werte
+    // Reset der gespeicherten Werte mit Sicherheitsabfrage
 
+    public function ArmReset(string $type): void
+    {
+        $this->SetBuffer('ResetArmed', $type);
+        $this->SendDebug('Reset', "Reset vorbereitet: $type", 0);
+    }
+    
     public function ResetDaily(): void
     {
+        if ($this->GetBuffer('ResetArmed') !== 'daily') {
+            $this->SendDebug('Reset', 'Daily Reset nicht bestätigt', 0);
+            return;
+        }
+    
+        $this->SetBuffer('ResetArmed', '');
+    
         $this->SetValue('DailyRuntime', 0);
         $this->SetValue('DailyEnergy', 0.0);
         $this->SetValue('DailySavings', 0.0);
@@ -385,12 +398,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function ResetTotal(): void
     {
+        if ($this->GetBuffer('ResetArmed') !== 'total') {
+            $this->SendDebug('Reset', 'Total Reset nicht bestätigt', 0);
+            return;
+        }
+    
+        $this->SetBuffer('ResetArmed', '');
+    
         $this->SetValue('TotalRuntime', 0);
         $this->SetValue('TotalRuntimeHours', 0.0);
-    
         $this->SetValue('EstimatedEnergy', 0.0);
         $this->SetValue('SavedEnergy', 0.0);
-    
         $this->SetValue('EnergyCost', 0.0);
         $this->SetValue('EnergyCostAccumulated', 0.0);
     
@@ -399,10 +417,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function ResetAll(): void
     {
+        if ($this->GetBuffer('ResetArmed') !== 'all') {
+            $this->SendDebug('Reset', 'ResetAll nicht bestätigt', 0);
+            return;
+        }
+    
+        $this->SetBuffer('ResetArmed', '');
+    
         $this->ResetDaily();
         $this->ResetTotal();
     
-        // zusätzliche Werte
         $this->SetValue('RunCount', 0);
         $this->SetValue('LastRun', 0);
     
