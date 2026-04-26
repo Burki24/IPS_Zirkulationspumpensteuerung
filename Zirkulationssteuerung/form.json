@@ -109,6 +109,19 @@
             "type": "NumberSpinner",
             "name": "WarmReduction",
             "caption": "Laufzeit Reduktion (%)"
+        },
+        {
+        "type": "Label",
+        "caption": "Verbrauchsberechnung"
+        },
+        {
+            "type": "Label",
+            "caption": "Hier kann die Leistungsaufnahme der Zirkulationspumpe eingestellt werden, um den Stromverbrauch zu berechnen."
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "PumpPower",
+            "caption": "Leistung (Watt)"
         }
     ]
 }
