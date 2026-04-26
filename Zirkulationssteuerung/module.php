@@ -30,6 +30,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'IPS_RequestAction($_IPS["TARGET"], "SwitchOff", 0);');
+
+        // 🔥 Deferred Timer (Fix für VM_UPDATE Problem)
+        $this->RegisterTimer('SwitchOnDeferred', 0, 'ZPS_ExecuteSwitchOn($_IPS["TARGET"]);');
     }
 
     public function ApplyChanges(): void
@@ -119,71 +122,77 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SwitchOn();
     }
 
+    // 🔥 WICHTIG: nur noch Trigger!
     public function SwitchOn(): void
     {
+        $this->SetTimerInterval('SwitchOnDeferred', 1);
+    }
+
+    // 🔥 Deferred Ausführung
+    public function ExecuteSwitchOn(): void
+    {
+        $this->SetTimerInterval('SwitchOnDeferred', 0);
+        $this->SwitchOnInternal();
+    }
+
+    // 🔥 Eigentliche Logik (jetzt safe)
+    private function SwitchOnInternal(): void
+    {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-    
+
         if (!IPS_VariableExists($switchID)) {
             $this->SendDebug('SwitchOn', 'SwitchID ungültig', 0);
             return;
         }
-    
+
         $runtime = $this->GetRuntime();
         $this->SendDebug('SwitchOn', "Pumpe EIN für $runtime Sekunden", 0);
-    
-        // Pumpe einschalten
+
         RequestAction($switchID, true);
-    
-        // Timer starten
+
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
-    
-        // Zeit speichern
+
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
-    
-        // Variablen-IDs holen
+
         $lastRunID = $this->GetIDForIdent('LastRun');
         $runCountID = $this->GetIDForIdent('RunCount');
         $activeID = $this->GetIDForIdent('Active');
-    
-        // Debug
+
         $this->SendDebug('IDs', "LastRun: $lastRunID | RunCount: $runCountID | Active: $activeID", 0);
-    
-        // Werte setzen über RequestAction (wichtig bei EnableAction!)
+
         if ($lastRunID > 0) {
             SetValue($lastRunID, $now);
         }
-    
+
         if ($runCountID > 0) {
             $count = GetValue($runCountID);
             SetValue($runCountID, $count + 1);
         }
-    
+
         if ($activeID > 0) {
             SetValue($activeID, true);
         }
     }
-    
+
     public function SwitchOff(): void
     {
         $switchID = $this->ReadPropertyInteger('SwitchID');
-    
+
         if (!IPS_VariableExists($switchID)) {
             return;
         }
-    
+
         $this->SendDebug('SwitchOff', 'Pumpe AUS', 0);
-    
-        SetValue($activeID, false);
-    
-        // Timer stoppen
+
+        RequestAction($switchID, false);
+
         $this->SetTimerInterval('OffTimer', 0);
-    
-        // Active zurücksetzen
+
         $activeID = $this->GetIDForIdent('Active');
-    
-        if ($activeID !== false) {
-            $this->RequestAction('Active', false);
+
+        if ($activeID > 0) {
+            SetValue($activeID, false);
         }
     }
 
@@ -192,6 +201,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         switch ($Ident) {
             case 'SwitchOff':
                 $this->SwitchOff();
+                break;
+
+            case 'ExecuteSwitchOn':
+                $this->ExecuteSwitchOn();
                 break;
         }
     }
