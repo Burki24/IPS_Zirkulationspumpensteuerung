@@ -151,7 +151,7 @@
 
                 {
                     "type": "Button",
-                    "caption": "Tageswerte vorbereiten",
+                    "caption": "Tageswerte zurücksetzen aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'daily');"
                 },
                 {
@@ -162,7 +162,7 @@
 
                 {
                     "type": "Button",
-                    "caption": "Gesamtwerte vorbereiten",
+                    "caption": "Gesamtwerte zurücksetzen aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'total');"
                 },
                 {
@@ -173,7 +173,7 @@
 
                 {
                     "type": "Button",
-                    "caption": "ALLES vorbereiten",
+                    "caption": "ALLES zurücksetzen aktivieren",
                     "onClick": "ZPS_ArmReset($id, 'all');"
                 },
                 {
