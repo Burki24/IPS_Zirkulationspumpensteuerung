@@ -57,12 +57,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
         $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
         $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
+        $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', '~Electricity');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
-
-        // Energieeinsparung
-        $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', 'ZPS.kWh');
     }
 
     public function ApplyChanges(): void
