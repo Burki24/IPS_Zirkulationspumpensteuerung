@@ -23,14 +23,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyInteger('NightStart', 22);
         $this->RegisterPropertyInteger('NightEnd', 6);
 
-        // Statusvariablen (KEINE EnableAction!)
+        // Statusvariablen
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
-        // Timer
+        // Timer für Abschaltung
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
-        $this->RegisterTimer('DeferredWrite', 0, 'ZPS_DoWrite($_IPS["TARGET"]);');
     }
 
     public function ApplyChanges(): void
@@ -57,6 +56,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $value = GetValue($SenderID);
 
+        // Nur auf TRUE reagieren
         if (!(bool)$value) {
             return;
         }
@@ -85,6 +85,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
 
+        // alte Events rauswerfen
         $events = array_filter($events, fn($t) => ($now - $t) <= $window);
         $events[] = $now;
 
@@ -118,20 +119,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $runtime = $this->GetRuntime();
 
+        // Pumpe EIN
         RequestAction($switchID, true);
 
+        // Abschalt-Timer
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
         $now = time();
         $this->SetBuffer('LastRun', (string)$now);
 
-        // Werte vorbereiten (NICHT direkt schreiben!)
-        $this->SetBuffer('PendingLastRun', (string)$now);
-        $this->SetBuffer('PendingIncrement', '1');
-        $this->SetBuffer('PendingActive', '1');
-
-        // Entkoppelt schreiben
-        $this->SetTimerInterval('DeferredWrite', 1);
+        // ✅ KORREKTES Schreiben (IPSModuleStrict!)
+        $this->SetValue('LastRun', $now);
+        $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
+        $this->SetValue('Active', true);
     }
 
     public function SwitchOff(): void
@@ -142,45 +142,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
             return;
         }
 
+        // Pumpe AUS
         RequestAction($switchID, false);
 
+        // Timer stoppen
         $this->SetTimerInterval('OffTimer', 0);
 
-        $this->SetBuffer('PendingActive', '0');
-
-        // Entkoppelt schreiben
-        $this->SetTimerInterval('DeferredWrite', 1);
-    }
-
-    public function DoWrite(): void
-    {
-        // Timer stoppen
-        $this->SetTimerInterval('DeferredWrite', 0);
-
-        $lastRun = (int)$this->GetBuffer('PendingLastRun');
-        $increment = $this->GetBuffer('PendingIncrement') === '1';
-        $activeBuffer = $this->GetBuffer('PendingActive');
-
-        $lastRunID = $this->GetIDForIdent('LastRun');
-        $runCountID = $this->GetIDForIdent('RunCount');
-        $activeID = $this->GetIDForIdent('Active');
-
-        if ($lastRunID > 0 && $lastRun > 0) {
-            SetValue($lastRunID, $lastRun);
-        }
-
-        if ($runCountID > 0 && $increment) {
-            SetValue($runCountID, GetValue($runCountID) + 1);
-        }
-
-        if ($activeID > 0 && $activeBuffer !== '') {
-            SetValue($activeID, $activeBuffer === '1');
-        }
-
-        // Buffer löschen
-        $this->SetBuffer('PendingLastRun', '');
-        $this->SetBuffer('PendingIncrement', '');
-        $this->SetBuffer('PendingActive', '');
+        // Status setzen
+        $this->SetValue('Active', false);
     }
 
     private function GetRuntime(): int
