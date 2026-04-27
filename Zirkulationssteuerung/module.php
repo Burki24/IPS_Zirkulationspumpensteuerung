@@ -12,10 +12,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::Create();
 
-        // Profile
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
-        // Reset Profil (WebFront Steuerung)
         $this->RegisterProfileIntegerEx('ZPS.Reset', 'Warning', '', '', [
             [0, '---', '', -1],
             [1, '🟡 Tageswerte vorbereiten', '', 0xFFFF00],
@@ -81,7 +79,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableFloat('EnergyCostAccumulated', 'Kosten gesamt', '~Euro');
         $this->RegisterVariableFloat('DailyCostAccumulated', 'Kosten heute', '~Euro');
 
-        // Reset Variable
+        // Reset
         $this->RegisterVariableInteger('ResetAction', 'Reset Aktionen', 'ZPS.Reset');
         $this->EnableAction('ResetAction');
 
@@ -89,57 +87,82 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
         $this->RegisterTimer('ResetTimeout', 0, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
 
-        // Buffer Init
+        // Buffer
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
+    }
 
-        if ($this->GetBuffer('InstallTime') === '') {
-            $this->SetBuffer('InstallTime', (string)time());
+    public function ApplyChanges(): void
+    {
+        parent::ApplyChanges();
+
+        $bath = $this->ReadPropertyInteger('MotionIDBath');
+        $kitchen = $this->ReadPropertyInteger('MotionIDKitchen');
+
+        if ($bath > 0 && IPS_VariableExists($bath)) {
+            $this->RegisterMessage($bath, VM_UPDATE);
         }
 
-        if ($this->GetBuffer('LastPrice') === '') {
-            $this->SetBuffer('LastPrice', '0');
+        if ($kitchen > 0 && IPS_VariableExists($kitchen)) {
+            $this->RegisterMessage($kitchen, VM_UPDATE);
         }
+    }
+
+    public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
+    {
+        if ($Message !== VM_UPDATE) return;
+        if (!(bool)GetValue($SenderID)) return;
+
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDBath')) {
+            $this->TrySwitchOn();
+            return;
+        }
+
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDKitchen')) {
+            $this->HandleKitchenMotion();
+        }
+    }
+
+    private function HandleKitchenMotion(): void
+    {
+        $now = time();
+        $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true) ?: [];
+
+        $window = $this->ReadPropertyInteger('TriggerWindow');
+        $events = array_filter($events, fn($t) => ($now - $t) <= $window);
+
+        $events[] = $now;
+        $this->SetBuffer('KitchenEvents', json_encode($events));
+
+        if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
+            $this->TrySwitchOn();
+            $this->SetBuffer('KitchenEvents', json_encode([]));
+        }
+    }
+
+    private function TrySwitchOn(): void
+    {
+        $lastRun = (int)$this->GetBuffer('LastRun');
+
+        if ($lastRun > 0 && (time() - $lastRun) < $this->ReadPropertyInteger('LockTime')) {
+            return;
+        }
+
+        $this->SwitchOn();
     }
 
     public function RequestAction(string $Ident, mixed $Value): void
     {
         if ($Ident === 'ResetAction') {
-    
             switch ($Value) {
-    
-                case 1:
-                    $this->ArmReset('daily');
-                    break;
-    
-                case 2:
-                    if ($this->IsResetStillValid('daily')) {
-                        $this->ResetDaily();
-                    }
-                    break;
-    
-                case 3:
-                    $this->ArmReset('total');
-                    break;
-    
-                case 4:
-                    if ($this->IsResetStillValid('total')) {
-                        $this->ResetTotal();
-                    }
-                    break;
-    
-                case 5:
-                    $this->ArmReset('all');
-                    break;
-    
-                case 6:
-                    if ($this->IsResetStillValid('all')) {
-                        $this->ResetAll();
-                    }
-                    break;
+                case 1: $this->ArmReset('daily'); break;
+                case 2: if ($this->IsResetStillValid('daily')) $this->ResetDaily(); break;
+                case 3: $this->ArmReset('total'); break;
+                case 4: if ($this->IsResetStillValid('total')) $this->ResetTotal(); break;
+                case 5: $this->ArmReset('all'); break;
+                case 6: if ($this->IsResetStillValid('all')) $this->ResetAll(); break;
             }
-    
             $this->SetValue('ResetAction', 0);
         }
     }
@@ -149,7 +172,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
 
-        $runtime = $this->GetRuntime();
+        $runtime = $this->ReadPropertyInteger('Runtime');
 
         RequestAction($id, true);
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
@@ -178,7 +201,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
             $this->UpdateCostsPerRun($duration);
         }
 
-        $this->CheckDailyReset();
         $this->UpdateRuntime();
         $this->UpdateEnergy();
         $this->UpdateSavings();
@@ -195,8 +217,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($start <= 0) return;
 
         $duration = time() - $start;
-
         $total = $this->GetValue('TotalRuntime') + $duration;
+
         $this->SetValue('TotalRuntime', $total);
         $this->SetValue('TotalRuntimeHours', round($total / 3600, 2));
     }
@@ -212,6 +234,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function UpdateSavings(): void
     {
         $install = (int)$this->GetBuffer('InstallTime');
+        if ($install <= 0) return;
+
         $hours = (time() - $install) / 3600;
         $power = $this->ReadPropertyFloat('PumpPower');
 
@@ -227,8 +251,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($start <= 0) return;
 
         $duration = time() - $start;
-
         $runtime = $this->GetValue('DailyRuntime') + $duration;
+
         $this->SetValue('DailyRuntime', $runtime);
 
         $power = $this->ReadPropertyFloat('PumpPower');
@@ -259,13 +283,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
             round($this->GetValue('DailyCostAccumulated') + $cost, 2));
     }
 
-    // ================= RESET =================
+    // ===== RESET =====
 
     public function ArmReset(string $type): void
     {
         $this->SetBuffer('ResetArmed', $type);
         $this->SetBuffer('ResetArmedTime', (string)time());
-
         $this->SetTimerInterval('ResetTimeout', 10000);
     }
 
