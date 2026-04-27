@@ -103,22 +103,43 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
         if ($Ident === 'ResetAction') {
-
+    
             switch ($Value) {
-
-                case 1: $this->ArmReset('daily'); break;
-                case 2: if ($this->IsResetStillValid('daily')) $this->ResetDaily(); break;
-
-                case 3: $this->ArmReset('total'); break;
-                case 4: if ($this->IsResetStillValid('total')) $this->ResetTotal(); break;
-
-                case 5: $this->ArmReset('all'); break;
-                case 6: if ($this->IsResetStillValid('all')) $this->ResetAll(); break;
+    
+                case 1:
+                    $this->ArmReset('daily');
+                    break;
+    
+                case 2:
+                    if ($this->IsResetStillValid('daily')) {
+                        $this->ResetDaily();
+                    }
+                    break;
+    
+                case 3:
+                    $this->ArmReset('total');
+                    break;
+    
+                case 4:
+                    if ($this->IsResetStillValid('total')) {
+                        $this->ResetTotal();
+                    }
+                    break;
+    
+                case 5:
+                    $this->ArmReset('all');
+                    break;
+    
+                case 6:
+                    if ($this->IsResetStillValid('all')) {
+                        $this->ResetAll();
+                    }
+                    break;
             }
-
+    
             $this->SetValue('ResetAction', 0);
         }
     }
