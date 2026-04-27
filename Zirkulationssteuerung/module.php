@@ -15,12 +15,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
         // Profile
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
+        // Reset Profil (WebFront Steuerung)
+        $this->RegisterProfileIntegerEx('ZPS.Reset', 'Warning', '', '', [
+            [0, '---', '', -1],
+            [1, '🟡 Tageswerte vorbereiten', '', 0xFFFF00],
+            [2, '🔴 Tageswerte löschen', '', 0xFF0000],
+            [3, '🟡 Gesamt vorbereiten', '', 0xFFFF00],
+            [4, '🔴 Gesamt löschen', '', 0xFF0000],
+            [5, '🟡 ALLES vorbereiten', '', 0xFFFF00],
+            [6, '🔥 ALLES löschen', '', 0xFF0000]
+        ]);
+
         // Geräte
         $this->RegisterPropertyInteger('MotionIDBath', 0);
         $this->RegisterPropertyInteger('MotionIDKitchen', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
 
-        // Basislaufzeit
+        // Laufzeit
         $this->RegisterPropertyInteger('Runtime', 180);
 
         // Zeitsteuerung
@@ -53,134 +64,78 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
 
         // Statistik
-        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute (Sekunden)', '');
+        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', '');
         $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
         $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
 
-        $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit (Sekunden)', '');
-        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (Stunden)', 'ZPS.Hours');
+        $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit', '');
+        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (h)', 'ZPS.Hours');
 
-        $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch (kWh)', '~Electricity');
-        $this->RegisterVariableFloat('SavedEnergy', 'Eingesparte Energie', '~Electricity');
+        $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch gesamt', '~Electricity');
+        $this->RegisterVariableFloat('SavedEnergy', 'Eingespart gesamt', '~Electricity');
 
-        // Dynamische Kosten
-        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt (dynamisch)', '~Euro');
-        $this->RegisterVariableFloat('DailyCost', 'Kosten heute (dynamisch)', '~Euro');
+        // Kosten
+        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt (dyn)', '~Euro');
+        $this->RegisterVariableFloat('DailyCost', 'Kosten heute (dyn)', '~Euro');
 
-        // FIXE Kosten (pro Lauf)
         $this->RegisterVariableFloat('EnergyCostAccumulated', 'Kosten gesamt', '~Euro');
         $this->RegisterVariableFloat('DailyCostAccumulated', 'Kosten heute', '~Euro');
+
+        // Reset Variable
+        $this->RegisterVariableInteger('ResetAction', 'Reset Aktionen', 'ZPS.Reset');
+        $this->EnableAction('ResetAction');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
         $this->RegisterTimer('ResetTimeout', 0, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
 
-        // Tageswechsel
+        // Buffer Init
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
 
-        // Installationszeit
         if ($this->GetBuffer('InstallTime') === '') {
-            $installTime = time();
-            $this->SetBuffer('InstallTime', (string)$installTime);
-
-            $this->RegisterVariableInteger('InstallTime', 'Installationszeit', '~UnixTimestamp');
-            $this->SetValue('InstallTime', $installTime);
+            $this->SetBuffer('InstallTime', (string)time());
         }
 
-        // Preis
         if ($this->GetBuffer('LastPrice') === '') {
             $this->SetBuffer('LastPrice', '0');
         }
     }
 
-    public function ApplyChanges(): void
+    public function RequestAction($Ident, $Value)
     {
-        parent::ApplyChanges();
+        if ($Ident === 'ResetAction') {
 
-        $bathID = $this->ReadPropertyInteger('MotionIDBath');
-        $kitchenID = $this->ReadPropertyInteger('MotionIDKitchen');
+            switch ($Value) {
 
-        if ($bathID > 0 && IPS_VariableExists($bathID)) {
-            $this->RegisterMessage($bathID, VM_UPDATE);
+                case 1: $this->ArmReset('daily'); break;
+                case 2: if ($this->IsResetStillValid('daily')) $this->ResetDaily(); break;
+
+                case 3: $this->ArmReset('total'); break;
+                case 4: if ($this->IsResetStillValid('total')) $this->ResetTotal(); break;
+
+                case 5: $this->ArmReset('all'); break;
+                case 6: if ($this->IsResetStillValid('all')) $this->ResetAll(); break;
+            }
+
+            $this->SetValue('ResetAction', 0);
         }
-
-        if ($kitchenID > 0 && IPS_VariableExists($kitchenID)) {
-            $this->RegisterMessage($kitchenID, VM_UPDATE);
-        }
-
-        // Preislogik
-        $oldPrice = (float)$this->GetBuffer('LastPrice');
-        $newPrice = $this->ReadPropertyFloat('EnergyPrice');
-
-        if ($oldPrice == 0.0 && $newPrice > 0.0) {
-            $this->UpdateCosts();
-        }
-
-        $this->SetBuffer('LastPrice', (string)$newPrice);
-    }
-
-    public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
-    {
-        if ($Message !== VM_UPDATE) return;
-        if (!(bool)GetValue($SenderID)) return;
-
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDBath')) {
-            $this->TrySwitchOn();
-            return;
-        }
-
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDKitchen')) {
-            $this->HandleKitchenMotion();
-        }
-    }
-
-    private function HandleKitchenMotion(): void
-    {
-        $now = time();
-        $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true) ?: [];
-
-        $window = $this->ReadPropertyInteger('TriggerWindow');
-        $events = array_filter($events, fn($t) => ($now - $t) <= $window);
-
-        if (count($events) > 0 && ($now - end($events)) > 15) {
-            $events = [];
-        }
-
-        $events[] = $now;
-        $this->SetBuffer('KitchenEvents', json_encode($events));
-
-        if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
-            $this->TrySwitchOn();
-            $this->SetBuffer('KitchenEvents', json_encode([]));
-        }
-    }
-
-    private function TrySwitchOn(): void
-    {
-        $lastRun = (int)$this->GetBuffer('LastRun');
-
-        if ($lastRun > 0 && (time() - $lastRun) < $this->ReadPropertyInteger('LockTime')) {
-            return;
-        }
-
-        $this->SwitchOn();
     }
 
     public function SwitchOn(): void
     {
-        $switchID = $this->ReadPropertyInteger('SwitchID');
-        if (!IPS_VariableExists($switchID)) return;
+        $id = $this->ReadPropertyInteger('SwitchID');
+        if (!IPS_VariableExists($id)) return;
 
         $runtime = $this->GetRuntime();
 
-        RequestAction($switchID, true);
+        RequestAction($id, true);
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
 
         $now = time();
-        $this->SetBuffer('LastRun', (string)$now);
         $this->SetBuffer('RunStart', (string)$now);
+        $this->SetBuffer('LastRun', (string)$now);
 
         $this->SetValue('LastRun', $now);
         $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
@@ -189,10 +144,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function SwitchOff(): void
     {
-        $switchID = $this->ReadPropertyInteger('SwitchID');
-        if (!IPS_VariableExists($switchID)) return;
+        $id = $this->ReadPropertyInteger('SwitchID');
+        if (!IPS_VariableExists($id)) return;
 
-        RequestAction($switchID, false);
+        RequestAction($id, false);
         $this->SetTimerInterval('OffTimer', 0);
 
         $start = (int)$this->GetBuffer('RunStart');
@@ -203,7 +158,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
 
         $this->CheckDailyReset();
-
         $this->UpdateRuntime();
         $this->UpdateEnergy();
         $this->UpdateSavings();
@@ -212,45 +166,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('Active', false);
         $this->SetBuffer('RunStart', '');
-    }
-
-    private function GetRuntime(): int
-    {
-        $runtime = $this->ReadPropertyInteger('Runtime');
-        $hour = (int)date('G');
-
-        if ($this->ReadPropertyBoolean('UseTimeControl')) {
-
-            if ($this->IsInTimeRange($hour,
-                $this->ReadPropertyInteger('TimeStart1'),
-                $this->ReadPropertyInteger('TimeEnd1'))) {
-                $runtime = $this->ReadPropertyInteger('Runtime1');
-            }
-
-            if ($this->IsInTimeRange($hour,
-                $this->ReadPropertyInteger('TimeStart2'),
-                $this->ReadPropertyInteger('TimeEnd2'))) {
-                $runtime = $this->ReadPropertyInteger('Runtime2');
-            }
-        }
-
-        $lastRun = (int)$this->GetBuffer('LastRun');
-        $warmWindow = $this->ReadPropertyInteger('WarmWindow');
-
-        if ($lastRun > 0 && (time() - $lastRun) < $warmWindow) {
-            $reduction = $this->ReadPropertyInteger('WarmReduction');
-            $runtime = (int)round($runtime * (1 - $reduction / 100));
-        }
-
-        return max(10, $runtime);
-    }
-
-    private function IsInTimeRange(int $hour, int $start, int $end): bool
-    {
-        if ($start > $end) {
-            return ($hour >= $start || $hour < $end);
-        }
-        return ($hour >= $start && $hour < $end);
     }
 
     private function UpdateRuntime(): void
@@ -267,8 +182,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     private function UpdateEnergy(): void
     {
-        $seconds = $this->GetValue('TotalRuntime');
-        $hours = $seconds / 3600;
+        $hours = $this->GetValue('TotalRuntime') / 3600;
         $power = $this->ReadPropertyFloat('PumpPower');
 
         $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
@@ -276,37 +190,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     private function UpdateSavings(): void
     {
-        $installTime = (int)$this->GetBuffer('InstallTime');
-
-        if ($installTime <= 0) {
-            $installTime = time();
-            $this->SetBuffer('InstallTime', (string)$installTime);
-        }
-
-        $runtimeHours = (time() - $installTime) / 3600;
+        $install = (int)$this->GetBuffer('InstallTime');
+        $hours = (time() - $install) / 3600;
         $power = $this->ReadPropertyFloat('PumpPower');
 
-        $full = ($power / 1000) * $runtimeHours;
-        $saved = $full - $this->GetValue('EstimatedEnergy');
-
-        if ($saved < 0) $saved = 0;
+        $full = ($power / 1000) * $hours;
+        $saved = max(0, $full - $this->GetValue('EstimatedEnergy'));
 
         $this->SetValue('SavedEnergy', round($saved, 3));
-    }
-
-    private function CheckDailyReset(): void
-    {
-        $today = date('Y-m-d');
-
-        if ($this->GetBuffer('LastDay') !== $today) {
-
-            $this->SetValue('DailyRuntime', 0);
-            $this->SetValue('DailyEnergy', 0.0);
-            $this->SetValue('DailySavings', 0.0);
-            $this->SetValue('DailyCostAccumulated', 0.0);
-
-            $this->SetBuffer('LastDay', $today);
-        }
     }
 
     private function UpdateDaily(): void
@@ -319,29 +210,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $runtime = $this->GetValue('DailyRuntime') + $duration;
         $this->SetValue('DailyRuntime', $runtime);
 
-        $hours = $runtime / 3600;
         $power = $this->ReadPropertyFloat('PumpPower');
+        $energy = ($power / 1000) * ($runtime / 3600);
 
-        $energy = ($power / 1000) * $hours;
         $this->SetValue('DailyEnergy', round($energy, 3));
-
-        $todayStart = strtotime(date('Y-m-d 00:00:00'));
-        $installTime = (int)$this->GetBuffer('InstallTime');
-
-        if ($installTime <= 0) {
-            $installTime = time();
-            $this->SetBuffer('InstallTime', (string)$installTime);
-        }
-
-        $startTime = max($todayStart, $installTime);
-        $elapsed = max(0, time() - $startTime);
-
-        $full = ($power / 1000) * ($elapsed / 3600);
-        $saved = $full - $energy;
-
-        if ($saved < 0) $saved = 0;
-
-        $this->SetValue('DailySavings', round($saved, 3));
     }
 
     private function UpdateCosts(): void
@@ -352,161 +224,80 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyCost', round($this->GetValue('DailyEnergy') * $price, 2));
     }
 
-    private function UpdateCostsPerRun(int $durationSeconds): void
+    private function UpdateCostsPerRun(int $sec): void
     {
         $power = $this->ReadPropertyFloat('PumpPower');
         $price = $this->ReadPropertyFloat('EnergyPrice');
 
-        $hours = $durationSeconds / 3600;
-        $energy = ($power / 1000) * $hours;
-        $cost = $energy * $price;
+        $cost = (($power / 1000) * ($sec / 3600)) * $price;
 
         $this->SetValue('EnergyCostAccumulated',
-            round($this->GetValue('EnergyCostAccumulated') + $cost, 2)
-        );
+            round($this->GetValue('EnergyCostAccumulated') + $cost, 2));
 
         $this->SetValue('DailyCostAccumulated',
-            round($this->GetValue('DailyCostAccumulated') + $cost, 2)
-        );
+            round($this->GetValue('DailyCostAccumulated') + $cost, 2));
     }
-    // Reset der gespeicherten Werte mit Sicherheitsabfrage
+
+    // ================= RESET =================
 
     public function ArmReset(string $type): void
     {
         $this->SetBuffer('ResetArmed', $type);
         $this->SetBuffer('ResetArmedTime', (string)time());
-    
-        // Timer starten (10 Sekunden)
-        $this->RegisterTimer('ResetTimeout', 10000, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
-    
-        $this->ReloadForm();
-    
-        $this->SendDebug('Reset', "Reset vorbereitet: $type", 0);
+
+        $this->SetTimerInterval('ResetTimeout', 10000);
     }
 
     public function ResetTimeout(): void
     {
         $this->SetBuffer('ResetArmed', '');
         $this->SetBuffer('ResetArmedTime', '');
-    
-        // Timer stoppen
         $this->SetTimerInterval('ResetTimeout', 0);
-    
-        $this->ReloadForm();
-    
-        $this->SendDebug('Reset', 'Reset automatisch zurückgesetzt (Timeout)', 0);
     }
 
     public function ResetDaily(): void
     {
-        if (!$this->IsResetStillValid('daily')) {
-            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
-            return;
-        }
-        if ($this->GetBuffer('ResetArmed') !== 'daily') {
-            $this->SendDebug('Reset', 'Daily Reset nicht bestätigt', 0);
-            return;
-        }
-    
-        $this->SetBuffer('ResetArmed', '');
-    
+        if (!$this->IsResetStillValid('daily')) return;
+
         $this->SetValue('DailyRuntime', 0);
-        $this->SetValue('DailyEnergy', 0.0);
-        $this->SetValue('DailySavings', 0.0);
-        $this->SetValue('DailyCost', 0.0);
-        $this->SetValue('DailyCostAccumulated', 0.0);
-    
-        $this->SetBuffer('LastDay', date('Y-m-d'));
-        $this->SetBuffer('ResetArmed', '');
-        $this->SetBuffer('ResetArmedTime', '');
-        $this->SetTimerInterval('ResetTimeout', 0);
-        $this->ReloadForm();
-    
-        $this->SendDebug('Reset', 'Tageswerte zurückgesetzt', 0);
+        $this->SetValue('DailyEnergy', 0);
+        $this->SetValue('DailySavings', 0);
+        $this->SetValue('DailyCost', 0);
+        $this->SetValue('DailyCostAccumulated', 0);
+
+        $this->ResetTimeout();
     }
 
     public function ResetTotal(): void
     {
-        if (!$this->IsResetStillValid('total')) {
-            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
-            return;
-        }
-        if ($this->GetBuffer('ResetArmed') !== 'total') {
-            $this->SendDebug('Reset', 'Total Reset nicht bestätigt', 0);
-            return;
-        }
-    
-        $this->SetBuffer('ResetArmed', '');
-    
+        if (!$this->IsResetStillValid('total')) return;
+
         $this->SetValue('TotalRuntime', 0);
-        $this->SetValue('TotalRuntimeHours', 0.0);
-        $this->SetValue('EstimatedEnergy', 0.0);
-        $this->SetValue('SavedEnergy', 0.0);
-        $this->SetValue('EnergyCost', 0.0);
-        $this->SetValue('EnergyCostAccumulated', 0.0);
-        $this->SetBuffer('ResetArmed', '');
-        $this->SetBuffer('ResetArmedTime', '');
-        $this->SetTimerInterval('ResetTimeout', 0);
-        $this->ReloadForm();
-    
-        $this->SendDebug('Reset', 'Gesamtwerte zurückgesetzt', 0);
+        $this->SetValue('TotalRuntimeHours', 0);
+        $this->SetValue('EstimatedEnergy', 0);
+        $this->SetValue('SavedEnergy', 0);
+        $this->SetValue('EnergyCost', 0);
+        $this->SetValue('EnergyCostAccumulated', 0);
+
+        $this->ResetTimeout();
     }
 
     public function ResetAll(): void
     {
-        if (!$this->IsResetStillValid('all')) {
-            $this->SendDebug('Reset', 'Timeout abgelaufen', 0);
-            return;
-        }
-        if ($this->GetBuffer('ResetArmed') !== 'all') {
-            $this->SendDebug('Reset', 'ResetAll nicht bestätigt', 0);
-            return;
-        }
-    
-        $this->SetBuffer('ResetArmed', '');
-    
+        if (!$this->IsResetStillValid('all')) return;
+
         $this->ResetDaily();
         $this->ResetTotal();
-    
+
         $this->SetValue('RunCount', 0);
         $this->SetValue('LastRun', 0);
-    
-        $this->SetBuffer('RunStart', '');
-        $this->SetBuffer('KitchenEvents', '[]');
-    
-        $this->SendDebug('Reset', 'ALLE Werte zurückgesetzt', 0);
-        $this->SetBuffer('ResetArmed', '');
-        $this->SetBuffer('ResetArmedTime', '');
-        $this->SetTimerInterval('ResetTimeout', 0);
-        $this->ReloadForm();
+
+        $this->ResetTimeout();
     }
 
     public function IsResetStillValid(string $type): bool
     {
-        if ($this->GetBuffer('ResetArmed') !== $type) {
-            return false;
-        }
-    
-        $time = (int)$this->GetBuffer('ResetArmedTime');
-    
-        return (time() - $time) <= 10;
-    }
-
-    public function GetResetStatus(): string
-    {
-        $armed = $this->GetBuffer('ResetArmed');
-    
-        if ($armed === '') {
-            return "🔴 Kein Reset aktiv";
-        }
-    
-        $time = (int)$this->GetBuffer('ResetArmedTime');
-        $remaining = 10 - (time() - $time);
-    
-        if ($remaining <= 0) {
-            return "⚪ Reset abgelaufen";
-        }
-    
-        return "🟡 Reset aktiv: " . strtoupper($armed) . " (" . $remaining . "s)";
+        return $this->GetBuffer('ResetArmed') === $type &&
+               (time() - (int)$this->GetBuffer('ResetArmedTime')) <= 10;
     }
 }
