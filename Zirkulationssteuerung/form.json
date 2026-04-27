@@ -117,7 +117,7 @@
         },
         {
             "type": "Label",
-            "caption": "Hier kann die Leistungsaufnahme der Zirkulationspumpe eingestellt werden, um den Stromverbrauch zu berechnen."
+            "caption": "Hier kann die Leistungsaufnahme der Zirkulationspumpe eingestellt werden."
         },
         {
             "type": "NumberSpinner",
@@ -131,79 +131,13 @@
         },
         {
             "type": "Label",
-            "caption": "Hier kann der aktuelle Strompreis eingetragen werden, um die Kosten und Einsparungen zu berechnen."
+            "caption": "Strompreis zur Berechnung der Kosten"
         },
         {
             "type": "NumberSpinner",
             "name": "EnergyPrice",
             "caption": "Strompreis (€/kWh)",
             "digits": 3
-        },
-
-        {
-            "type": "ExpansionPanel",
-            "caption": "Statistik zurücksetzen",
-            "items": [
-
-                {
-                    "type": "Label",
-                    "caption": "⚠ Aktionen müssen erst aktiviert und dann bestätigt werden (10 Sekunden gültig)!"
-                },
-
-                {
-                    "type": "Value",
-                    "caption": "Status",
-                    "value": "@ZPS_GetResetStatus($id)"
-                },
-
-                {
-                    "type": "RowLayout",
-                    "items": [
-                        {
-                            "type": "Button",
-                            "caption": "Tageswerte aktivieren",
-                            "onClick": "ZPS_ArmReset($id, 'daily');"
-                        },
-                        {
-                            "type": "Button",
-                            "caption": "JETZT zurücksetzen",
-                            "onClick": "ZPS_ResetDaily($id);"
-                        }
-                    ]
-                },
-
-                {
-                    "type": "RowLayout",
-                    "items": [
-                        {
-                            "type": "Button",
-                            "caption": "Gesamtwerte aktivieren",
-                            "onClick": "ZPS_ArmReset($id, 'total');"
-                        },
-                        {
-                            "type": "Button",
-                            "caption": "JETZT zurücksetzen",
-                            "onClick": "ZPS_ResetTotal($id);"
-                        }
-                    ]
-                },
-
-                {
-                    "type": "RowLayout",
-                    "items": [
-                        {
-                            "type": "Button",
-                            "caption": "ALLES aktivieren",
-                            "onClick": "ZPS_ArmReset($id, 'all');"
-                        },
-                        {
-                            "type": "Button",
-                            "caption": "JETZT ALLES löschen",
-                            "onClick": "ZPS_ResetAll($id);"
-                        }
-                    ]
-                }
-            ]
         }
     ]
 }
