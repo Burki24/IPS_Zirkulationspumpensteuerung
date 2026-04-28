@@ -79,10 +79,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableFloat('EnergyCostAccumulated', 'Kosten gesamt', '~Euro');
         $this->RegisterVariableFloat('DailyCostAccumulated', 'Kosten heute', '~Euro');
 
-        // Reset
-        $this->RegisterVariableInteger('ResetAction', 'Reset Aktionen', 'ZPS.Reset');
-        $this->EnableAction('ResetAction');
-
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
         $this->RegisterTimer('ResetTimeout', 0, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
@@ -298,67 +294,5 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('DailyCostAccumulated',
             round($this->GetValue('DailyCostAccumulated') + $cost, 2));
-    }
-
-    // ===== RESET =====
-
-    public function ArmReset(string $type): void
-    {
-        $this->SetBuffer('ResetArmed', $type);
-        $this->SetBuffer('ResetArmedTime', (string)time());
-        $this->SetTimerInterval('ResetTimeout', 10000);
-    }
-
-    public function ResetTimeout(): void
-    {
-        $this->SetBuffer('ResetArmed', '');
-        $this->SetBuffer('ResetArmedTime', '');
-        $this->SetTimerInterval('ResetTimeout', 0);
-    }
-
-    public function ResetDaily(): void
-    {
-        if (!$this->IsResetStillValid('daily')) return;
-
-        $this->SetValue('DailyRuntime', 0);
-        $this->SetValue('DailyEnergy', 0);
-        $this->SetValue('DailySavings', 0);
-        $this->SetValue('DailyCost', 0);
-        $this->SetValue('DailyCostAccumulated', 0);
-
-        $this->ResetTimeout();
-    }
-
-    public function ResetTotal(): void
-    {
-        if (!$this->IsResetStillValid('total')) return;
-
-        $this->SetValue('TotalRuntime', 0);
-        $this->SetValue('TotalRuntimeHours', 0);
-        $this->SetValue('EstimatedEnergy', 0);
-        $this->SetValue('SavedEnergy', 0);
-        $this->SetValue('EnergyCost', 0);
-        $this->SetValue('EnergyCostAccumulated', 0);
-
-        $this->ResetTimeout();
-    }
-
-    public function ResetAll(): void
-    {
-        if (!$this->IsResetStillValid('all')) return;
-
-        $this->ResetDaily();
-        $this->ResetTotal();
-
-        $this->SetValue('RunCount', 0);
-        $this->SetValue('LastRun', 0);
-
-        $this->ResetTimeout();
-    }
-
-    public function IsResetStillValid(string $type): bool
-    {
-        return $this->GetBuffer('ResetArmed') === $type &&
-               (time() - (int)$this->GetBuffer('ResetArmedTime')) <= 10;
     }
 }
