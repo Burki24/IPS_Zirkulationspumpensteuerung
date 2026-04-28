@@ -14,16 +14,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
-        $this->RegisterProfileIntegerEx('ZPS.Reset', 'Warning', '', '', [
-            [0, '---', '', -1],
-            [1, '🟡 Tageswerte vorbereiten', '', 0xFFFF00],
-            [2, '🔴 Tageswerte löschen', '', 0xFF0000],
-            [3, '🟡 Gesamt vorbereiten', '', 0xFFFF00],
-            [4, '🔴 Gesamt löschen', '', 0xFF0000],
-            [5, '🟡 ALLES vorbereiten', '', 0xFFFF00],
-            [6, '🔥 ALLES löschen', '', 0xFF0000]
-        ]);
-
         // Geräte
         $this->RegisterPropertyInteger('MotionIDBath', 0);
         $this->RegisterPropertyInteger('MotionIDKitchen', 0);
@@ -81,7 +71,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
-        $this->RegisterTimer('ResetTimeout', 0, 'ZPS_ResetTimeout($_IPS["TARGET"]);');
 
         // Buffer
         if ($this->GetBuffer('LastDay') === '') {
