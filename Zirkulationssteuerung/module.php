@@ -91,6 +91,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
+
+        // Installationszeitpunkt für korrekte Tagesberechnung
+        if ($this->GetBuffer('InstallTime') === '') {
+            $this->SetBuffer('InstallTime', (string)time());
+        }
     }
 
     public function ApplyChanges(): void
@@ -259,6 +264,18 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $energy = ($power / 1000) * ($runtime / 3600);
 
         $this->SetValue('DailyEnergy', round($energy, 3));
+
+        // Einsparung heute berechnen
+        $todayStart = strtotime(date('Y-m-d 00:00:00'));
+        $install = (int)$this->GetBuffer('InstallTime');
+        
+        $startTime = max($todayStart, $install);
+        $elapsed = max(0, time() - $startTime);
+        
+        $full = ($power / 1000) * ($elapsed / 3600);
+        $saved = max(0, $full - $energy);
+        
+        $this->SetValue('DailySavings', round($saved, 3));
     }
 
     private function UpdateCosts(): void
