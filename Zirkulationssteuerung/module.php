@@ -71,13 +71,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
+        $this->RegisterTimer('DailyResetTimer', 0, 'ZPS_DailyReset($_IPS["TARGET"]);');
 
         // Buffer
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
 
-        // Installationszeitpunkt für korrekte Tagesberechnung
         if ($this->GetBuffer('InstallTime') === '') {
             $this->SetBuffer('InstallTime', (string)time());
         }
@@ -97,6 +97,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($kitchen > 0 && IPS_VariableExists($kitchen)) {
             $this->RegisterMessage($kitchen, VM_UPDATE);
         }
+
+        $this->SetDailyResetTimer();
     }
 
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
@@ -142,21 +144,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SwitchOn();
     }
 
-    public function RequestAction(string $Ident, mixed $Value): void
-    {
-        if ($Ident === 'ResetAction') {
-            switch ($Value) {
-                case 1: $this->ArmReset('daily'); break;
-                case 2: if ($this->IsResetStillValid('daily')) $this->ResetDaily(); break;
-                case 3: $this->ArmReset('total'); break;
-                case 4: if ($this->IsResetStillValid('total')) $this->ResetTotal(); break;
-                case 5: $this->ArmReset('all'); break;
-                case 6: if ($this->IsResetStillValid('all')) $this->ResetAll(); break;
-            }
-            $this->SetValue('ResetAction', 0);
-        }
-    }
-
     public function SwitchOn(): void
     {
         $id = $this->ReadPropertyInteger('SwitchID');
@@ -179,6 +166,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
     public function SwitchOff(): void
     {
         $this->CheckDailyReset();
+
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
 
@@ -201,18 +189,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('Active', false);
         $this->SetBuffer('RunStart', '');
     }
-    
+
+    public function DailyReset(): void
+    {
+        $this->CheckDailyReset();
+        $this->SetDailyResetTimer();
+    }
+
     private function CheckDailyReset(): void
     {
         $today = date('Y-m-d');
-    
+
         if ($this->GetBuffer('LastDay') !== $today) {
-    
+
             $this->SetValue('DailyRuntime', 0);
             $this->SetValue('DailyEnergy', 0.0);
             $this->SetValue('DailySavings', 0.0);
             $this->SetValue('DailyCostAccumulated', 0.0);
-    
+
             $this->SetBuffer('LastDay', $today);
         }
     }
@@ -266,16 +260,15 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('DailyEnergy', round($energy, 3));
 
-        // Einsparung heute berechnen
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
         $install = (int)$this->GetBuffer('InstallTime');
-        
+
         $startTime = max($todayStart, $install);
         $elapsed = max(0, time() - $startTime);
-        
+
         $full = ($power / 1000) * ($elapsed / 3600);
         $saved = max(0, $full - $energy);
-        
+
         $this->SetValue('DailySavings', round($saved, 3));
     }
 
@@ -299,5 +292,15 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('DailyCostAccumulated',
             round($this->GetValue('DailyCostAccumulated') + $cost, 2));
+    }
+
+    private function SetDailyResetTimer(): void
+    {
+        $now = time();
+        $midnight = strtotime('tomorrow 00:00:00');
+
+        $ms = ($midnight - $now) * 1000;
+
+        $this->SetTimerInterval('DailyResetTimer', $ms);
     }
 }
