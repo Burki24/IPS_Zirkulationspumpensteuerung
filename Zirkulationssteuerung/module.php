@@ -7,7 +7,22 @@ require_once __DIR__ . '/../libs/VariableProfileHelper.php';
 class Zirkulationssteuerung extends IPSModuleStrict
 {
     use VariableProfileHelper;
-
+    
+    /**
+     * Create
+     *
+     * Initialisiert das Modul und registriert alle Eigenschaften,
+     * Variablen, Profile, Timer und internen Buffer.
+     *
+     * Diese Methode wird einmalig beim Anlegen der Instanz ausgeführt.
+     *
+     * @return void
+     *
+     * @see \IPSModule::Create()
+     * @see \IPSModule::RegisterPropertyInteger()
+     * @see \IPSModule::RegisterVariableInteger()
+     * @see \IPSModule::RegisterTimer()
+     */
     public function Create(): void
     {
         parent::Create();
@@ -83,6 +98,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
+    /**
+     * ApplyChanges
+     *
+     * Übernimmt geänderte Einstellungen und registriert
+     * Ereignisse (z.B. Bewegungsmelder) neu.
+     *
+     * Wird automatisch nach Änderungen in der Konfiguration ausgeführt.
+     *
+     * @return void
+     *
+     * @see \IPSModule::ApplyChanges()
+     * @see \IPSModule::RegisterMessage()
+     */
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
@@ -100,7 +128,25 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetDailyResetTimer();
     }
-
+    
+    /**
+     * MessageSink
+     *
+     * Reagiert auf Änderungen von verknüpften Variablen
+     * (z.B. Bewegungsmelder).
+     *
+     * Startet abhängig vom Sender die Pumpenlogik.
+     *
+     * @param int   $TimeStamp Zeitpunkt der Änderung
+     * @param int   $SenderID  ID der auslösenden Variable
+     * @param int   $Message   Nachrichtentyp (z.B. VM_UPDATE)
+     * @param array $Data      Zusatzdaten zur Nachricht
+     *
+     * @return void
+     *
+     * @see VM_UPDATE
+     * @see \IPSModule::RegisterMessage()
+     */
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message !== VM_UPDATE) return;
@@ -116,6 +162,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
+    /**
+     * HandleKitchenMotion
+     *
+     * Verarbeitet Bewegungen in der Küche und zählt Ereignisse
+     * innerhalb eines Zeitfensters.
+     *
+     * Startet die Pumpe, wenn die definierte Anzahl an
+     * Bewegungen erreicht wurde.
+     *
+     * @return void
+     */
     private function HandleKitchenMotion(): void
     {
         $now = time();
@@ -133,6 +190,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
+    /**
+     * TrySwitchOn
+     *
+     * Prüft die Sperrzeit seit der letzten Aktivierung
+     * und startet die Pumpe nur, wenn diese abgelaufen ist.
+     *
+     * @return void
+     */
     private function TrySwitchOn(): void
     {
         $lastRun = (int)$this->GetBuffer('LastRun');
@@ -144,6 +209,18 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SwitchOn();
     }
 
+    /**
+     * SwitchOn
+     *
+     * Schaltet die Pumpe ein und startet den Abschalt-Timer.
+     *
+     * Speichert Startzeit und erhöht den Start-Zähler.
+     *
+     * @return void
+     *
+     * @see RequestAction()
+     * @see \IPSModule::SetTimerInterval()
+     */
     public function SwitchOn(): void
     {
         $id = $this->ReadPropertyInteger('SwitchID');
@@ -163,6 +240,20 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('Active', true);
     }
 
+    /**
+     * SwitchOff
+     *
+     * Schaltet die Pumpe aus und berechnet alle relevanten Werte:
+     * Laufzeit, Energie, Kosten und Einsparung.
+     *
+     * Wird automatisch durch den Timer ausgelöst.
+     *
+     * @return void
+     *
+     * @see UpdateRuntime()
+     * @see UpdateEnergy()
+     * @see UpdateCosts()
+     */
     public function SwitchOff(): void
     {
         $this->CheckDailyReset();
@@ -190,12 +281,35 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('RunStart', '');
     }
 
+    /**
+     * DailyReset
+     *
+     * Wird täglich durch den Timer ausgelöst und setzt
+     * die Tageswerte zurück.
+     *
+     * Anschließend wird der Timer für den nächsten Tag neu gesetzt.
+     *
+     * @return void
+     *
+     * @see CheckDailyReset()
+     */
     public function DailyReset(): void
     {
         $this->CheckDailyReset();
         $this->SetDailyResetTimer();
     }
 
+    /**
+     * CheckDailyReset
+     *
+     * Prüft, ob ein Tageswechsel stattgefunden hat und
+     * setzt in diesem Fall die Tageswerte zurück.
+     *
+     * Wird zusätzlich als Sicherheitsmechanismus bei
+     * jeder Pumpenabschaltung ausgeführt.
+     *
+     * @return void
+     */
     private function CheckDailyReset(): void
     {
         $today = date('Y-m-d');
@@ -211,6 +325,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
     }
 
+    /**
+     * UpdateRuntime
+     *
+     * Berechnet die Laufzeit des aktuellen Pumpenlaufs
+     * und addiert sie zur Gesamtlaufzeit.
+     *
+     * @return void
+     */
     private function UpdateRuntime(): void
     {
         $start = (int)$this->GetBuffer('RunStart');
@@ -223,6 +345,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('TotalRuntimeHours', round($total / 3600, 2));
     }
 
+    /**
+     * UpdateEnergy
+     *
+     * Berechnet den gesamten Energieverbrauch auf Basis
+     * der Laufzeit und der Pumpenleistung.
+     *
+     * @return void
+     */
     private function UpdateEnergy(): void
     {
         $hours = $this->GetValue('TotalRuntime') / 3600;
@@ -231,6 +361,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
     }
 
+    /**
+     * UpdateSavings
+     *
+     * Berechnet die eingesparte Energie im Vergleich
+     * zu einem Dauerbetrieb seit Installation.
+     *
+     * @return void
+     */
     private function UpdateSavings(): void
     {
         $install = (int)$this->GetBuffer('InstallTime');
@@ -245,6 +383,17 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('SavedEnergy', round($saved, 3));
     }
 
+    /**
+     * UpdateDaily
+     *
+     * Aktualisiert die Tageswerte für Laufzeit, Energieverbrauch
+     * und Einsparung.
+     *
+     * Berücksichtigt dabei auch den Installationszeitpunkt,
+     * falls der erste Tag kein voller Tag ist.
+     *
+     * @return void
+     */
     private function UpdateDaily(): void
     {
         $start = (int)$this->GetBuffer('RunStart');
@@ -272,6 +421,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailySavings', round($saved, 3));
     }
 
+    /**
+     * UpdateCosts
+     *
+     * Berechnet die aktuellen Stromkosten basierend auf
+     * Energieverbrauch und Strompreis.
+     *
+     * @return void
+     */
     private function UpdateCosts(): void
     {
         $price = $this->ReadPropertyFloat('EnergyPrice');
@@ -280,6 +437,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyCost', round($this->GetValue('DailyEnergy') * $price, 2));
     }
 
+    /**
+     * UpdateCostsPerRun
+     *
+     * Berechnet die Kosten eines einzelnen Pumpenlaufs
+     * und addiert diese zu den kumulierten Werten.
+     *
+     * @param int $sec Laufzeit des Pumpenlaufs in Sekunden
+     *
+     * @return void
+     */
     private function UpdateCostsPerRun(int $sec): void
     {
         $power = $this->ReadPropertyFloat('PumpPower');
@@ -294,6 +461,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
             round($this->GetValue('DailyCostAccumulated') + $cost, 2));
     }
 
+    /**
+     * SetDailyResetTimer
+     *
+     * Setzt den Timer so, dass er exakt um Mitternacht
+     * ausgelöst wird.
+     *
+     * @return void
+     */
     private function SetDailyResetTimer(): void
     {
         $now = time();
