@@ -30,8 +30,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
 
         // Geräte
-        $this->RegisterPropertyInteger('MotionIDBath', 0);
-        $this->RegisterPropertyInteger('MotionIDKitchen', 0);
+        $this->RegisterPropertyInteger('MotionIDDirect', 0);
+        $this->RegisterPropertyInteger('MotionIDImpulse', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
 
         // Laufzeit
@@ -115,15 +115,15 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        $bath = $this->ReadPropertyInteger('MotionIDBath');
-        $kitchen = $this->ReadPropertyInteger('MotionIDKitchen');
+        $direct = $this->ReadPropertyInteger('MotionIDDirect');
+        $impulse = $this->ReadPropertyInteger('MotionIDImpulse');
 
-        if ($bath > 0 && IPS_VariableExists($bath)) {
-            $this->RegisterMessage($bath, VM_UPDATE);
+        if ($direct > 0 && IPS_VariableExists($direct)) {
+            $this->RegisterMessage($direct, VM_UPDATE);
         }
 
-        if ($kitchen > 0 && IPS_VariableExists($kitchen)) {
-            $this->RegisterMessage($kitchen, VM_UPDATE);
+        if ($impulse > 0 && IPS_VariableExists($impulse)) {
+            $this->RegisterMessage($impulse, VM_UPDATE);
         }
 
         $this->SetDailyResetTimer();
@@ -152,18 +152,18 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($Message !== VM_UPDATE) return;
         if (!(bool)GetValue($SenderID)) return;
 
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDBath')) {
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDDirect')) {
             $this->TrySwitchOn();
             return;
         }
 
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDKitchen')) {
-            $this->HandleKitchenMotion();
+        if ($SenderID === $this->ReadPropertyInteger('MotionIDImpulse')) {
+            $this->HandleImpulseMotion();
         }
     }
 
     /**
-     * HandleKitchenMotion
+     * HandleImpulseMotion
      *
      * Verarbeitet Bewegungen in der Küche und zählt Ereignisse
      * innerhalb eines Zeitfensters.
@@ -173,10 +173,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function HandleKitchenMotion(): void
+    private function HandleImpulseMotion(): void
     {
         $now = time();
-        $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true) ?: [];
+        $events = json_decode($this->GetBuffer('ImpulseEvents') ?: '[]', true) ?: [];
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
         $events = array_values(array_filter($events, fn($t) => ($now - $t) <= $window));
@@ -185,12 +185,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if (!empty($events) && ($now - end($events)) > 15) {
             $events = [];
         }
+
         $events[] = $now;
-        $this->SetBuffer('KitchenEvents', json_encode($events));
+        $this->SetBuffer('ImpulseEvents', json_encode($events));
 
         if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
             $this->TrySwitchOn();
-            $this->SetBuffer('KitchenEvents', json_encode([]));
+            $this->SetBuffer('ImpulseEvents', json_encode([]));
         }
     }
 
@@ -205,7 +206,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function TrySwitchOn(): void
     {
         if ($this->IsLocked()) return;
-
         $this->SwitchOn();
     }
 
@@ -268,7 +268,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         if ($start > 0) {
             $duration = time() - $start;
-
             $power = $this->ReadPropertyFloat('PumpPower');
 
             $this->ProcessRun($duration, $power);
@@ -312,7 +311,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $today = date('Y-m-d');
 
         if ($this->GetBuffer('LastDay') !== $today) {
-
             $this->SetValue('DailyRuntime', 0);
             $this->SetValue('DailyEnergy', 0.0);
             $this->SetValue('DailySavings', 0.0);
@@ -353,7 +351,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function UpdateEnergy(float $power): void
     {
         $hours = $this->GetValue('TotalRuntime') / 3600;
-
         $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
     }
 
@@ -371,7 +368,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($install <= 0) return;
 
         $hours = (time() - $install) / 3600;
-
         $full = ($power / 1000) * $hours;
         $saved = max(0, $full - $this->GetValue('EstimatedEnergy'));
 
@@ -443,7 +439,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function UpdateCostsPerRun(int $sec, float $power): void
     {
         $price = $this->ReadPropertyFloat('EnergyPrice');
-
         $cost = (($power / 1000) * ($sec / 3600)) * $price;
 
         $this->SetValue('EnergyCostAccumulated',
@@ -483,7 +478,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function IsLocked(): bool
     {
         $lastRun = (int)$this->GetBuffer('LastRun');
-
         if ($lastRun <= 0) return false;
 
         return (time() - $lastRun) < $this->ReadPropertyInteger('LockTime');
