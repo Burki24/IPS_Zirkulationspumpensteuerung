@@ -28,6 +28,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         parent::Create();
 
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
+        $this->RegisterProfileIntegerEx('ZPS.StartReason', 'Information', '', '', [
+            [1, 'Direkt', '', 0x00FF00],
+            [2, 'Impulsbasiert', '', 0x0000FF],
+            [3, 'Manuell', '', 0xAAAAAA]
+        ]);
 
         // Geräte
         $this->RegisterPropertyInteger('MotionIDDirect', 0);
@@ -65,6 +70,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
+        $this->RegisterVariableInteger('StartReason', 'Startgrund', 'ZPS.StartReason');
 
         // Statistik
         $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', '');
@@ -153,7 +159,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if (!(bool)GetValue($SenderID)) return;
 
         if ($SenderID === $this->ReadPropertyInteger('MotionIDDirect')) {
-            $this->TrySwitchOn();
+            $this->TrySwitchOn(1);
             return;
         }
 
@@ -190,7 +196,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('ImpulseEvents', json_encode($events));
 
         if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
-            $this->TrySwitchOn();
+            $this->TrySwitchOn(2);
             $this->SetBuffer('ImpulseEvents', json_encode([]));
         }
     }
@@ -203,10 +209,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function TrySwitchOn(): void
+    private function TrySwitchOn(int $reason): void
     {
         if ($this->IsLocked()) return;
-        $this->SwitchOn();
+    
+        $this->SwitchOn($reason);
     }
 
     /**
@@ -221,23 +228,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
      * @see RequestAction()
      * @see \IPSModule::SetTimerInterval()
      */
-    public function SwitchOn(): void
+    public function SwitchOn(int $reason = 3): void
     {
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
-
+    
         $runtime = $this->ReadPropertyInteger('Runtime');
-
+    
         RequestAction($id, true);
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
-
+    
         $now = time();
         $this->SetBuffer('RunStart', (string)$now);
         $this->SetBuffer('LastRun', (string)$now);
-
+    
         $this->SetValue('LastRun', $now);
         $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
         $this->SetValue('Active', true);
+        $this->SetValue('StartReason', $reason);
     }
 
     /**
