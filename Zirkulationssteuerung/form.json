@@ -13,17 +13,26 @@
 
         {
             "type": "Label",
-            "caption": "Bewegungsmelder"
+            "caption": "Bewegungserkennung"
         },
         {
             "type": "SelectVariable",
-            "name": "MotionIDBath",
-            "caption": "Bewegungsmelder Bad"
+            "name": "MotionIDDirect",
+            "caption": "Direkt (⚡ sofort starten)"
         },
         {
+            "type": "Label",
+            "caption": "Startet die Pumpe sofort bei Bewegung."
+        },
+
+        {
             "type": "SelectVariable",
-            "name": "MotionIDKitchen",
-            "caption": "Bewegungsmelder Küche"
+            "name": "MotionIDImpulse",
+            "caption": "Impulsbasiert (🔁 mehrere Bewegungen)"
+        },
+        {
+            "type": "Label",
+            "caption": "Startet die Pumpe erst nach mehreren Bewegungen innerhalb eines Zeitfensters."
         },
 
         {
@@ -36,14 +45,23 @@
             "caption": "Standard Laufzeit (Sekunden)"
         },
         {
+            "type": "Label",
+            "caption": "Wie lange die Pumpe nach Aktivierung läuft."
+        },
+
+        {
             "type": "NumberSpinner",
             "name": "LockTime",
             "caption": "Sperrzeit (Sekunden)"
         },
+        {
+            "type": "Label",
+            "caption": "Verhindert erneutes Starten kurz nach einer Aktivierung."
+        },
 
         {
             "type": "Label",
-            "caption": "Küche Erkennung"
+            "caption": "Impulsbasierte Erkennung"
         },
         {
             "type": "NumberSpinner",
@@ -51,9 +69,18 @@
             "caption": "Bewegungen bis Start"
         },
         {
+            "type": "Label",
+            "caption": "Wie viele Bewegungen erkannt werden müssen, bevor gestartet wird."
+        },
+
+        {
             "type": "NumberSpinner",
             "name": "TriggerWindow",
             "caption": "Zeitfenster (Sekunden)"
+        },
+        {
+            "type": "Label",
+            "caption": "Zeitspanne, in der die Bewegungen gezählt werden."
         },
 
         {
@@ -65,6 +92,7 @@
             "name": "UseTimeControl",
             "caption": "Zeitsteuerung aktivieren"
         },
+
         {
             "type": "NumberSpinner",
             "name": "TimeStart1",
@@ -80,6 +108,7 @@
             "name": "Runtime1",
             "caption": "Laufzeit Fenster 1"
         },
+
         {
             "type": "NumberSpinner",
             "name": "TimeStart2",
@@ -106,9 +135,18 @@
             "caption": "Zeitraum 'noch warm' (Sekunden)"
         },
         {
+            "type": "Label",
+            "caption": "Innerhalb dieses Zeitraums wird die Laufzeit reduziert."
+        },
+
+        {
             "type": "NumberSpinner",
             "name": "WarmReduction",
             "caption": "Laufzeit Reduktion (%)"
+        },
+        {
+            "type": "Label",
+            "caption": "Reduziert die Laufzeit, wenn das Wasser noch warm ist."
         },
 
         {
@@ -116,28 +154,28 @@
             "caption": "Verbrauchsberechnung"
         },
         {
-            "type": "Label",
-            "caption": "Hier kann die Leistungsaufnahme der Zirkulationspumpe eingestellt werden."
-        },
-        {
             "type": "NumberSpinner",
             "name": "PumpPower",
             "caption": "Leistung (Watt)"
         },
+        {
+            "type": "Label",
+            "caption": "Leistungsaufnahme der Pumpe für die Berechnung."
+        },
 
         {
             "type": "Label",
-            "caption": "Stromkosten cent/kWh"
-        },
-        {
-            "type": "Label",
-            "caption": "Strompreis zur Berechnung der Kosten"
+            "caption": "Stromkosten"
         },
         {
             "type": "NumberSpinner",
             "name": "EnergyPrice",
             "caption": "Strompreis (€/kWh)",
             "digits": 3
+        },
+        {
+            "type": "Label",
+            "caption": "Wird zur Berechnung der Betriebskosten verwendet."
         }
     ]
 }
