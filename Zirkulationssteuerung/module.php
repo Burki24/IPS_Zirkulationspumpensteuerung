@@ -179,8 +179,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $events = json_decode($this->GetBuffer('KitchenEvents') ?: '[]', true) ?: [];
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
-        $events = array_filter($events, fn($t) => ($now - $t) <= $window);
+        $events = array_values(array_filter($events, fn($t) => ($now - $t) <= $window));
 
+        // Reset wenn zu große Pause
+        if (!empty($events) && ($now - end($events)) > 15) {
+            $events = [];
+        }
         $events[] = $now;
         $this->SetBuffer('KitchenEvents', json_encode($events));
 
@@ -200,11 +204,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     private function TrySwitchOn(): void
     {
-        $lastRun = (int)$this->GetBuffer('LastRun');
-
-        if ($lastRun > 0 && (time() - $lastRun) < $this->ReadPropertyInteger('LockTime')) {
-            return;
-        }
+        if ($this->IsLocked()) return;
 
         $this->SwitchOn();
     }
@@ -268,14 +268,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         if ($start > 0) {
             $duration = time() - $start;
-            $this->UpdateCostsPerRun($duration);
-        }
 
-        $this->UpdateRuntime();
-        $this->UpdateEnergy();
-        $this->UpdateSavings();
-        $this->UpdateDaily();
-        $this->UpdateCosts();
+            $power = $this->ReadPropertyFloat('PumpPower');
+
+            $this->ProcessRun($duration, $power);
+        }
 
         $this->SetValue('Active', false);
         $this->SetBuffer('RunStart', '');
@@ -353,10 +350,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateEnergy(): void
+    private function UpdateEnergy(float $power): void
     {
         $hours = $this->GetValue('TotalRuntime') / 3600;
-        $power = $this->ReadPropertyFloat('PumpPower');
 
         $this->SetValue('EstimatedEnergy', round(($power / 1000) * $hours, 3));
     }
@@ -369,13 +365,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateSavings(): void
+    private function UpdateSavings(float $power): void
     {
         $install = (int)$this->GetBuffer('InstallTime');
         if ($install <= 0) return;
 
         $hours = (time() - $install) / 3600;
-        $power = $this->ReadPropertyFloat('PumpPower');
 
         $full = ($power / 1000) * $hours;
         $saved = max(0, $full - $this->GetValue('EstimatedEnergy'));
@@ -394,7 +389,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateDaily(): void
+    private function UpdateDaily(float $power): void
     {
         $start = (int)$this->GetBuffer('RunStart');
         if ($start <= 0) return;
@@ -404,9 +399,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('DailyRuntime', $runtime);
 
-        $power = $this->ReadPropertyFloat('PumpPower');
         $energy = ($power / 1000) * ($runtime / 3600);
-
         $this->SetValue('DailyEnergy', round($energy, 3));
 
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
@@ -447,9 +440,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateCostsPerRun(int $sec): void
+    private function UpdateCostsPerRun(int $sec, float $power): void
     {
-        $power = $this->ReadPropertyFloat('PumpPower');
         $price = $this->ReadPropertyFloat('EnergyPrice');
 
         $cost = (($power / 1000) * ($sec / 3600)) * $price;
@@ -472,10 +464,28 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function SetDailyResetTimer(): void
     {
         $now = time();
-        $midnight = strtotime('tomorrow 00:00:00');
-
+        $midnight = strtotime(date('Y-m-d 00:00:00') . ' +1 day');
         $ms = ($midnight - $now) * 1000;
 
         $this->SetTimerInterval('DailyResetTimer', $ms);
+    }
+
+    private function ProcessRun(int $duration, float $power): void
+    {
+        $this->UpdateCostsPerRun($duration, $power);
+        $this->UpdateRuntime();
+        $this->UpdateEnergy($power);
+        $this->UpdateSavings($power);
+        $this->UpdateDaily($power);
+        $this->UpdateCosts();
+    }
+
+    private function IsLocked(): bool
+    {
+        $lastRun = (int)$this->GetBuffer('LastRun');
+
+        if ($lastRun <= 0) return false;
+
+        return (time() - $lastRun) < $this->ReadPropertyInteger('LockTime');
     }
 }
