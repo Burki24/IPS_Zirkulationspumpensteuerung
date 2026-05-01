@@ -178,6 +178,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
     public function SwitchOff(): void
     {
+        $this->CheckDailyReset();
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
 
@@ -199,6 +200,21 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('Active', false);
         $this->SetBuffer('RunStart', '');
+    }
+    
+    private function CheckDailyReset(): void
+    {
+        $today = date('Y-m-d');
+    
+        if ($this->GetBuffer('LastDay') !== $today) {
+    
+            $this->SetValue('DailyRuntime', 0);
+            $this->SetValue('DailyEnergy', 0.0);
+            $this->SetValue('DailySavings', 0.0);
+            $this->SetValue('DailyCostAccumulated', 0.0);
+    
+            $this->SetBuffer('LastDay', $today);
+        }
     }
 
     private function UpdateRuntime(): void
