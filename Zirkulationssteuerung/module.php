@@ -267,9 +267,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->CheckDailyReset();
 
         $id = $this->ReadPropertyInteger('SwitchID');
-        if (!IPS_VariableExists($id)) return;
-
-        RequestAction($id, false);
         $this->SetTimerInterval('OffTimer', 0);
 
         if (IPS_VariableExists($id)) {
@@ -403,11 +400,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($start <= 0) return;
 
         $duration = time() - $start;
-        $runtime = $this->GetValue('DailyRuntime') + $duration;
-        $minutes = round($runtime / 60, 2);
+        $runtimeSeconds = ((float)$this->GetValue('DailyRuntime') * 60) + $duration;
+        $minutes = round($runtimeSeconds / 60, 2);
         $this->SetValue('DailyRuntime', $minutes);
 
-        $energy = ($power / 1000) * ($runtime / 3600);
+        $energy = ($power / 1000) * ($runtimeSeconds / 3600);
         $this->SetValue('DailyEnergy', round($energy, 3));
 
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
