@@ -16,6 +16,10 @@
             "caption": "Motion detection"
         },
         {
+            "type": "Label",
+            "caption": "Starts the pump immediately when motion is detected."
+        },
+        {
             "type": "SelectVariable",
             "name": "MotionIDDirect",
             "caption": "Direct sensor 1 (start immediately)"
@@ -32,9 +36,8 @@
         },
         {
             "type": "Label",
-            "caption": "Starts the pump immediately when motion is detected."
+            "caption": "Starts the pump only after multiple motions within a time window."
         },
-
         {
             "type": "SelectVariable",
             "name": "MotionIDImpulse",
@@ -50,11 +53,6 @@
             "name": "MotionIDImpulse3",
             "caption": "Impulse sensor 3 (multiple motions)"
         },
-        {
-            "type": "Label",
-            "caption": "Starts the pump only after multiple motions within a time window."
-        },
-
         {
             "type": "Label",
             "caption": "Basic settings"
