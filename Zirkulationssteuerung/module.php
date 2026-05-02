@@ -267,6 +267,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->CheckDailyReset();
 
         $id = $this->ReadPropertyInteger('SwitchID');
+        if (!IPS_VariableExists($id)) return;
+
+        RequestAction($id, false);
         $this->SetTimerInterval('OffTimer', 0);
 
         if (IPS_VariableExists($id)) {
