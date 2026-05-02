@@ -77,6 +77,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyFloat('PumpPower', 30.0);
         $this->RegisterPropertyFloat('EnergyPrice', 0.30);
 
+        // Persistente Attribute
+        $this->RegisterAttributeInteger('InstallTime', 0);
+
         // Status
         $this->RegisterVariableInteger('LastRun', 'Last activation', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Start count', '');
@@ -110,9 +113,19 @@ class Zirkulationssteuerung extends IPSModuleStrict
             $this->SetBuffer('LastDay', date('Y-m-d'));
         }
 
-        if ($this->GetBuffer('InstallTime') === '') {
-            $this->SetBuffer('InstallTime', (string)time());
+        $attributeInstallTime = $this->ReadAttributeInteger('InstallTime');
+        $bufferInstallTime = (int)$this->GetBuffer('InstallTime');
+
+        if ($attributeInstallTime <= 0) {
+            if ($bufferInstallTime > 0) {
+                $attributeInstallTime = $bufferInstallTime;
+            } else {
+                $attributeInstallTime = time();
+            }
+            $this->WriteAttributeInteger('InstallTime', $attributeInstallTime);
         }
+
+        $this->SetBuffer('InstallTime', (string)$attributeInstallTime);
     }
 
     /**
@@ -396,7 +409,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     private function UpdateSavings(float $power): void
     {
-        $install = (int)$this->GetBuffer('InstallTime');
+        $install = $this->ReadAttributeInteger('InstallTime');
+        if ($install <= 0) {
+            $install = (int)$this->GetBuffer('InstallTime');
+        }
         if ($install <= 0) return;
 
         $hours = (time() - $install) / 3600;
@@ -427,7 +443,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetValue('DailyEnergy', round($energy, 3));
 
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
-        $install = (int)$this->GetBuffer('InstallTime');
+        $install = $this->ReadAttributeInteger('InstallTime');
+        if ($install <= 0) {
+            $install = (int)$this->GetBuffer('InstallTime');
+        }
 
         $startTime = max($todayStart, $install);
         $elapsed = max(0, time() - $startTime);
