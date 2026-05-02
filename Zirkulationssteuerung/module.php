@@ -364,12 +364,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateRuntime(): void
+    private function UpdateRuntime(int $duration): void
     {
-        $start = (int)$this->GetBuffer('RunStart');
-        if ($start <= 0) return;
-
-        $duration = time() - $start;
         $total = $this->GetValue('TotalRuntime') + $duration;
 
         $this->SetValue('TotalRuntime', $total);
@@ -421,12 +417,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateDaily(float $power): void
+    private function UpdateDaily(int $duration, float $power): void
     {
-        $start = (int)$this->GetBuffer('RunStart');
-        if ($start <= 0) return;
-
-        $duration = time() - $start;
         $runtimeSeconds = ((float)$this->GetValue('DailyRuntime') * 60) + $duration;
         $minutes = round($runtimeSeconds / 60, 2);
         $this->SetValue('DailyRuntime', $minutes);
@@ -504,10 +496,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function ProcessRun(int $duration, float $power): void
     {
         $this->UpdateCostsPerRun($duration, $power);
-        $this->UpdateRuntime();
+        $this->UpdateRuntime($duration);
         $this->UpdateEnergy($power);
         $this->UpdateSavings($power);
-        $this->UpdateDaily($power);
+        $this->UpdateDaily($duration, $power);
         $this->UpdateCosts();
     }
 
