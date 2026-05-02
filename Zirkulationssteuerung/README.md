@@ -62,8 +62,8 @@ Zirkulationssteuerung
 | Name                  | Beschreibung                                           |
 | ------------------    | ------------------------------------------------------ |
 | Zirkulationspumpe     | Schaltaktor der Pumpe                                  |
-| Bewegungsmelder Bad   | Startet die Pumpe direkt                               |
-| Bewegungsmelder Küche | Startet die Pumpe erst nach mehreren Triggern          |
+| Bewegungsmelder 1-3   | Startet die Pumpe direkt                               |
+| Bewegungsmelder 1-3   | Startet die Pumpe erst nach mehreren Triggern          |
 | Runtime               | Laufzeit der Pumpe in Sekunden                         |
 | LockTime              | Mindestabstand zwischen Starts                         |
 | TriggerCount          | Anzahl Bewegungen für Küchenstart                      |

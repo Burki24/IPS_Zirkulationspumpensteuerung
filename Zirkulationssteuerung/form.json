@@ -3,179 +3,222 @@
 
         {
             "type": "Label",
-            "caption": "Schaltaktor Zirkulationspumpe"
+            "caption": "Circulation pump switch actor"
         },
         {
             "type": "SelectVariable",
             "name": "SwitchID",
-            "caption": "Zirkulationspumpe"
+            "caption": "Circulation pump"
         },
 
         {
             "type": "Label",
-            "caption": "Bewegungserkennung"
+            "caption": "Motion detection"
         },
         {
             "type": "SelectVariable",
             "name": "MotionIDDirect",
-            "caption": "Direkt (⚡ sofort starten)"
+            "caption": "Direct sensor 1 (start immediately)"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDDirect2",
+            "caption": "Direct sensor 2 (start immediately)"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDDirect3",
+            "caption": "Direct sensor 3 (start immediately)"
         },
         {
             "type": "Label",
-            "caption": "Startet die Pumpe sofort bei Bewegung."
+            "caption": "Starts the pump immediately when motion is detected."
         },
 
         {
             "type": "SelectVariable",
             "name": "MotionIDImpulse",
-            "caption": "Impulsbasiert (🔁 mehrere Bewegungen)"
+            "caption": "Impulse sensor 1 (multiple motions)"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDImpulse2",
+            "caption": "Impulse sensor 2 (multiple motions)"
+        },
+        {
+            "type": "SelectVariable",
+            "name": "MotionIDImpulse3",
+            "caption": "Impulse sensor 3 (multiple motions)"
         },
         {
             "type": "Label",
-            "caption": "Startet die Pumpe erst nach mehreren Bewegungen innerhalb eines Zeitfensters."
+            "caption": "Starts the pump only after multiple motions within a time window."
         },
 
         {
             "type": "Label",
-            "caption": "Grundeinstellungen"
+            "caption": "Basic settings"
         },
         {
             "type": "NumberSpinner",
             "name": "Runtime",
-            "caption": "Standard Laufzeit (Sekunden)"
+            "caption": "Default runtime (seconds)"
         },
         {
             "type": "Label",
-            "caption": "Wie lange die Pumpe nach Aktivierung läuft."
+            "caption": "How long the pump runs after activation."
         },
 
         {
             "type": "NumberSpinner",
             "name": "LockTime",
-            "caption": "Sperrzeit (Sekunden)"
+            "caption": "Lock time (seconds)"
         },
         {
             "type": "Label",
-            "caption": "Verhindert erneutes Starten kurz nach einer Aktivierung."
+            "caption": "Prevents restarting shortly after an activation."
         },
 
         {
             "type": "Label",
-            "caption": "Impulsbasierte Erkennung"
+            "caption": "Impulse-based detection"
         },
         {
             "type": "NumberSpinner",
             "name": "TriggerCount",
-            "caption": "Bewegungen bis Start"
+            "caption": "Motions until start"
         },
         {
             "type": "Label",
-            "caption": "Wie viele Bewegungen erkannt werden müssen, bevor gestartet wird."
+            "caption": "How many motions must be detected before starting."
         },
 
         {
             "type": "NumberSpinner",
             "name": "TriggerWindow",
-            "caption": "Zeitfenster (Sekunden)"
+            "caption": "Time window (seconds)"
         },
         {
             "type": "Label",
-            "caption": "Zeitspanne, in der die Bewegungen gezählt werden."
+            "caption": "Time span in which motions are counted."
+        },
+        {
+            "type": "Select",
+            "name": "ImpulseMode",
+            "caption": "Impulse counting mode",
+            "options": [
+                {
+                    "caption": "Combined (all sensors)",
+                    "value": 1
+                },
+                {
+                    "caption": "Same sensor only",
+                    "value": 2
+                },
+                {
+                    "caption": "Different sensors only",
+                    "value": 3
+                }
+            ]
+        },
+        {
+            "type": "Label",
+            "caption": "Defines whether impulses are counted across sensors, per sensor, or only by distinct sensors."
         },
 
         {
             "type": "Label",
-            "caption": "Zeitabhängige Laufzeiten (optional)"
+            "caption": "Time-dependent runtimes (optional)"
         },
         {
             "type": "CheckBox",
             "name": "UseTimeControl",
-            "caption": "Zeitsteuerung aktivieren"
+            "caption": "Enable time control"
         },
 
         {
             "type": "NumberSpinner",
             "name": "TimeStart1",
-            "caption": "Fenster 1 Start (Stunde)"
+            "caption": "Window 1 start (hour)"
         },
         {
             "type": "NumberSpinner",
             "name": "TimeEnd1",
-            "caption": "Fenster 1 Ende (Stunde)"
+            "caption": "Window 1 end (hour)"
         },
         {
             "type": "NumberSpinner",
             "name": "Runtime1",
-            "caption": "Laufzeit Fenster 1"
+            "caption": "Runtime window 1"
         },
 
         {
             "type": "NumberSpinner",
             "name": "TimeStart2",
-            "caption": "Fenster 2 Start (Stunde)"
+            "caption": "Window 2 start (hour)"
         },
         {
             "type": "NumberSpinner",
             "name": "TimeEnd2",
-            "caption": "Fenster 2 Ende (Stunde)"
+            "caption": "Window 2 end (hour)"
         },
         {
             "type": "NumberSpinner",
             "name": "Runtime2",
-            "caption": "Laufzeit Fenster 2"
+            "caption": "Runtime window 2"
         },
 
         {
             "type": "Label",
-            "caption": "Warmwasser-Optimierung"
+            "caption": "Hot water optimization"
         },
         {
             "type": "NumberSpinner",
             "name": "WarmWindow",
-            "caption": "Zeitraum 'noch warm' (Sekunden)"
+            "caption": "\"Still warm\" period (seconds)"
         },
         {
             "type": "Label",
-            "caption": "Innerhalb dieses Zeitraums wird die Laufzeit reduziert."
+            "caption": "Within this period, runtime is reduced."
         },
 
         {
             "type": "NumberSpinner",
             "name": "WarmReduction",
-            "caption": "Laufzeit Reduktion (%)"
+            "caption": "Runtime reduction (%)"
         },
         {
             "type": "Label",
-            "caption": "Reduziert die Laufzeit, wenn das Wasser noch warm ist."
+            "caption": "Reduces runtime when water is still warm."
         },
 
         {
             "type": "Label",
-            "caption": "Verbrauchsberechnung"
+            "caption": "Consumption calculation"
         },
         {
             "type": "NumberSpinner",
             "name": "PumpPower",
-            "caption": "Leistung (Watt)"
+            "caption": "Power (watts)"
         },
         {
             "type": "Label",
-            "caption": "Leistungsaufnahme der Pumpe für die Berechnung."
+            "caption": "Pump power consumption used for calculations."
         },
 
         {
             "type": "Label",
-            "caption": "Stromkosten"
+            "caption": "Energy costs"
         },
         {
             "type": "NumberSpinner",
             "name": "EnergyPrice",
-            "caption": "Strompreis (€/kWh)",
+            "caption": "Electricity price (€/kWh)",
             "digits": 3
         },
         {
             "type": "Label",
-            "caption": "Wird zur Berechnung der Betriebskosten verwendet."
+            "caption": "Used to calculate operating costs."
         }
     ]
 }

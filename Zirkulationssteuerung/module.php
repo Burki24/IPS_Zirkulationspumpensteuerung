@@ -30,14 +30,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
         $this->RegisterProfileFloat('ZPS.Minutes', 'Clock', '', ' min', 0, 0, 0, 2);
         $this->RegisterProfileIntegerEx('ZPS.StartReason', 'Information', '', '', [
-            [1, 'Direkt', '', 0x00FF00],
-            [2, 'Impulsbasiert', '', 0x0000FF],
-            [3, 'Manuell', '', 0xAAAAAA]
+            [1, 'Direct', '', 0x00FF00],
+            [2, 'Impulse-based', '', 0x0000FF],
+            [3, 'Manual', '', 0xAAAAAA]
+        ]);
+        $this->RegisterProfileIntegerEx('ZPS.ImpulseMode', 'Information', '', '', [
+            [1, 'Combined (all sensors)', '', 0x00AAFF],
+            [2, 'Same sensor only', '', 0x66CC66],
+            [3, 'Different sensors only', '', 0xFFAA00]
         ]);
 
         // Geräte
         $this->RegisterPropertyInteger('MotionIDDirect', 0);
+        $this->RegisterPropertyInteger('MotionIDDirect2', 0);
+        $this->RegisterPropertyInteger('MotionIDDirect3', 0);
         $this->RegisterPropertyInteger('MotionIDImpulse', 0);
+        $this->RegisterPropertyInteger('MotionIDImpulse2', 0);
+        $this->RegisterPropertyInteger('MotionIDImpulse3', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
 
         // Laufzeit
@@ -59,6 +68,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         // Küche
         $this->RegisterPropertyInteger('TriggerCount', 3);
         $this->RegisterPropertyInteger('TriggerWindow', 60);
+        $this->RegisterPropertyInteger('ImpulseMode', 1);
 
         // Sperrzeit
         $this->RegisterPropertyInteger('LockTime', 600);
@@ -68,28 +78,28 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyFloat('EnergyPrice', 0.30);
 
         // Status
-        $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
-        $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
-        $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
-        $this->RegisterVariableInteger('StartReason', 'Startgrund', 'ZPS.StartReason');
+        $this->RegisterVariableInteger('LastRun', 'Last activation', '~UnixTimestamp');
+        $this->RegisterVariableInteger('RunCount', 'Start count', '');
+        $this->RegisterVariableBoolean('Active', 'Pump active', '~Switch');
+        $this->RegisterVariableInteger('StartReason', 'Start reason', 'ZPS.StartReason');
 
         // Statistik
-        $this->RegisterVariableFloat('DailyRuntime', 'Laufzeit heute', 'ZPS.Minutes');
-        $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
-        $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
+        $this->RegisterVariableFloat('DailyRuntime', 'Runtime today', 'ZPS.Minutes');
+        $this->RegisterVariableFloat('DailyEnergy', 'Consumption today', '~Electricity');
+        $this->RegisterVariableFloat('DailySavings', 'Savings today', '~Electricity');
 
-        $this->RegisterVariableInteger('TotalRuntime', 'Gesamtlaufzeit', '');
-        $this->RegisterVariableFloat('TotalRuntimeHours', 'Gesamtlaufzeit (h)', 'ZPS.Hours');
+        $this->RegisterVariableInteger('TotalRuntime', 'Total runtime', '');
+        $this->RegisterVariableFloat('TotalRuntimeHours', 'Total runtime (h)', 'ZPS.Hours');
 
-        $this->RegisterVariableFloat('EstimatedEnergy', 'Verbrauch gesamt', '~Electricity');
-        $this->RegisterVariableFloat('SavedEnergy', 'Eingespart gesamt', '~Electricity');
+        $this->RegisterVariableFloat('EstimatedEnergy', 'Total consumption', '~Electricity');
+        $this->RegisterVariableFloat('SavedEnergy', 'Total savings', '~Electricity');
 
         // Kosten
-        $this->RegisterVariableFloat('EnergyCost', 'Kosten gesamt (dyn)', '~Euro');
-        $this->RegisterVariableFloat('DailyCost', 'Kosten heute (dyn)', '~Euro');
+        $this->RegisterVariableFloat('EnergyCost', 'Total cost (dyn)', '~Euro');
+        $this->RegisterVariableFloat('DailyCost', 'Cost today (dyn)', '~Euro');
 
-        $this->RegisterVariableFloat('EnergyCostAccumulated', 'Kosten gesamt', '~Euro');
-        $this->RegisterVariableFloat('DailyCostAccumulated', 'Kosten heute', '~Euro');
+        $this->RegisterVariableFloat('EnergyCostAccumulated', 'Total cost', '~Euro');
+        $this->RegisterVariableFloat('DailyCostAccumulated', 'Cost today', '~Euro');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
@@ -122,16 +132,22 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         parent::ApplyChanges();
 
-        $direct = $this->ReadPropertyInteger('MotionIDDirect');
-        $impulse = $this->ReadPropertyInteger('MotionIDImpulse');
-
-        if ($direct > 0 && IPS_VariableExists($direct)) {
-            $this->RegisterMessage($direct, VM_UPDATE);
+        $previousSensorIds = json_decode($this->GetBuffer('RegisteredSensorIDs') ?: '[]', true) ?: [];
+        foreach ($previousSensorIds as $sensorId) {
+            if (is_int($sensorId) && $sensorId > 0 && IPS_VariableExists($sensorId)) {
+                $this->UnregisterMessage($sensorId, VM_UPDATE);
+            }
         }
 
-        if ($impulse > 0 && IPS_VariableExists($impulse)) {
-            $this->RegisterMessage($impulse, VM_UPDATE);
+        $currentSensorIds = array_values(array_unique(array_merge($this->GetDirectMotionIDs(), $this->GetImpulseMotionIDs())));
+
+        foreach ($currentSensorIds as $sensorId) {
+            if ($sensorId > 0 && IPS_VariableExists($sensorId)) {
+                $this->RegisterMessage($sensorId, VM_UPDATE);
+            }
         }
+
+        $this->SetBuffer('RegisteredSensorIDs', json_encode($currentSensorIds));
 
         $this->SetDailyResetTimer();
     }
@@ -159,13 +175,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($Message !== VM_UPDATE) return;
         if (!(bool)GetValue($SenderID)) return;
 
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDDirect')) {
+        if (in_array($SenderID, $this->GetDirectMotionIDs(), true)) {
             $this->TrySwitchOn(1);
             return;
         }
 
-        if ($SenderID === $this->ReadPropertyInteger('MotionIDImpulse')) {
-            $this->HandleImpulseMotion();
+        if (in_array($SenderID, $this->GetImpulseMotionIDs(), true)) {
+            $this->HandleImpulseMotion($SenderID);
         }
     }
 
@@ -180,23 +196,18 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function HandleImpulseMotion(): void
+    private function HandleImpulseMotion(int $senderId): void
     {
         $now = time();
-        $events = json_decode($this->GetBuffer('ImpulseEvents') ?: '[]', true) ?: [];
+        $events = $this->NormalizeImpulseEvents(json_decode($this->GetBuffer('ImpulseEvents') ?: '[]', true) ?: []);
 
         $window = $this->ReadPropertyInteger('TriggerWindow');
-        $events = array_values(array_filter($events, fn($t) => ($now - $t) <= $window));
+        $events = array_values(array_filter($events, static fn(array $event) => ($now - $event['time']) <= $window));
 
-        // Reset wenn zu große Pause
-        if (!empty($events) && ($now - end($events)) > 15) {
-            $events = [];
-        }
-
-        $events[] = $now;
+        $events[] = ['id' => $senderId, 'time' => $now];
         $this->SetBuffer('ImpulseEvents', json_encode($events));
 
-        if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
+        if ($this->IsImpulseTriggerReached($events, $senderId)) {
             $this->TrySwitchOn(2);
             $this->SetBuffer('ImpulseEvents', json_encode([]));
         }
@@ -267,9 +278,6 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->CheckDailyReset();
 
         $id = $this->ReadPropertyInteger('SwitchID');
-        if (!IPS_VariableExists($id)) return;
-
-        RequestAction($id, false);
         $this->SetTimerInterval('OffTimer', 0);
 
         if (IPS_VariableExists($id)) {
@@ -287,6 +295,22 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetValue('Active', false);
         $this->SetBuffer('RunStart', '');
+    }
+
+    public function Destroy(): void
+    {
+        foreach (array_values(array_unique(array_merge($this->GetDirectMotionIDs(), $this->GetImpulseMotionIDs()))) as $sensorId) {
+            if ($sensorId > 0 && IPS_VariableExists($sensorId)) {
+                $this->UnregisterMessage($sensorId, VM_UPDATE);
+            }
+        }
+
+        $this->UnregisterProfile('ZPS.Hours');
+        $this->UnregisterProfile('ZPS.Minutes');
+        $this->UnregisterProfile('ZPS.StartReason');
+        $this->UnregisterProfile('ZPS.ImpulseMode');
+
+        parent::Destroy();
     }
 
     /**
@@ -530,5 +554,62 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
 
         return $hour >= $start || $hour <= $end;
+    }
+
+    private function GetDirectMotionIDs(): array
+    {
+        return array_values(array_filter([
+            $this->ReadPropertyInteger('MotionIDDirect'),
+            $this->ReadPropertyInteger('MotionIDDirect2'),
+            $this->ReadPropertyInteger('MotionIDDirect3')
+        ], static fn(int $id) => $id > 0));
+    }
+
+    private function GetImpulseMotionIDs(): array
+    {
+        return array_values(array_filter([
+            $this->ReadPropertyInteger('MotionIDImpulse'),
+            $this->ReadPropertyInteger('MotionIDImpulse2'),
+            $this->ReadPropertyInteger('MotionIDImpulse3')
+        ], static fn(int $id) => $id > 0));
+    }
+
+    private function IsImpulseTriggerReached(array $events, int $currentSenderId): bool
+    {
+        $triggerCount = max(1, $this->ReadPropertyInteger('TriggerCount'));
+        $mode = $this->ReadPropertyInteger('ImpulseMode');
+
+        if ($mode === 2) {
+            $sameSensorCount = count(array_filter($events, static fn(array $event): bool => $event['id'] === $currentSenderId));
+            return $sameSensorCount >= $triggerCount;
+        }
+
+        if ($mode === 3) {
+            $uniqueSensors = array_unique(array_map(static fn(array $event): int => (int)$event['id'], $events));
+            return count($uniqueSensors) >= $triggerCount;
+        }
+
+        return count($events) >= $triggerCount;
+    }
+
+    private function NormalizeImpulseEvents(array $events): array
+    {
+        $normalized = [];
+
+        foreach ($events as $event) {
+            if (is_int($event)) {
+                $normalized[] = ['id' => 0, 'time' => $event];
+                continue;
+            }
+
+            if (is_array($event) && array_key_exists('time', $event)) {
+                $normalized[] = [
+                    'id' => isset($event['id']) ? (int)$event['id'] : 0,
+                    'time' => (int)$event['time']
+                ];
+            }
+        }
+
+        return $normalized;
     }
 }
