@@ -7,7 +7,7 @@ require_once __DIR__ . '/../libs/VariableProfileHelper.php';
 class Zirkulationssteuerung extends IPSModuleStrict
 {
     use VariableProfileHelper;
-    
+
     /**
      * Create
      *
@@ -74,7 +74,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('StartReason', 'Startgrund', 'ZPS.StartReason');
 
         // Statistik
-        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', 'ZPS.Minutes');
+        $this->RegisterVariableFloat('DailyRuntime', 'Laufzeit heute', 'ZPS.Minutes');
         $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
         $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
 
@@ -135,7 +135,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $this->SetDailyResetTimer();
     }
-    
+
     /**
      * MessageSink
      *
@@ -233,7 +233,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
 
-        $runtime = $this->ReadPropertyInteger('Runtime');
+        $runtime = $this->DetermineRuntime();
 
         RequestAction($id, true);
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
@@ -271,6 +271,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         RequestAction($id, false);
         $this->SetTimerInterval('OffTimer', 0);
+
+        if (IPS_VariableExists($id)) {
+            RequestAction($id, false);
+        }
 
         $start = (int)$this->GetBuffer('RunStart');
 
@@ -319,7 +323,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $today = date('Y-m-d');
 
         if ($this->GetBuffer('LastDay') !== $today) {
-            $this->SetValue('DailyRuntime', 0);
+            $this->SetValue('DailyRuntime', 0.0);
             $this->SetValue('DailyEnergy', 0.0);
             $this->SetValue('DailySavings', 0.0);
             $this->SetValue('DailyCostAccumulated', 0.0);
@@ -489,5 +493,42 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if ($lastRun <= 0) return false;
 
         return (time() - $lastRun) < $this->ReadPropertyInteger('LockTime');
+    }
+
+    private function DetermineRuntime(): int
+    {
+        $runtime = max(1, $this->ReadPropertyInteger('Runtime'));
+
+        if ($this->ReadPropertyBoolean('UseTimeControl')) {
+            $hour = (int)date('G');
+
+            if ($this->IsInHourWindow($hour, $this->ReadPropertyInteger('TimeStart1'), $this->ReadPropertyInteger('TimeEnd1'))) {
+                $runtime = max(1, $this->ReadPropertyInteger('Runtime1'));
+            } elseif ($this->IsInHourWindow($hour, $this->ReadPropertyInteger('TimeStart2'), $this->ReadPropertyInteger('TimeEnd2'))) {
+                $runtime = max(1, $this->ReadPropertyInteger('Runtime2'));
+            }
+        }
+
+        $lastRun = (int)$this->GetBuffer('LastRun');
+        $warmWindow = max(0, $this->ReadPropertyInteger('WarmWindow'));
+
+        if ($lastRun > 0 && $warmWindow > 0 && (time() - $lastRun) <= $warmWindow) {
+            $reduction = max(0, min(100, $this->ReadPropertyInteger('WarmReduction')));
+            $runtime = max(1, (int)round($runtime * (1 - ($reduction / 100))));
+        }
+
+        return $runtime;
+    }
+
+    private function IsInHourWindow(int $hour, int $start, int $end): bool
+    {
+        $start = max(0, min(23, $start));
+        $end = max(0, min(23, $end));
+
+        if ($start <= $end) {
+            return $hour >= $start && $hour <= $end;
+        }
+
+        return $hour >= $start || $hour <= $end;
     }
 }
