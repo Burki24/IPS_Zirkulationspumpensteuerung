@@ -71,6 +71,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
+        $this->RegisterVariableInteger('StartReason', 'Startgrund', 'ZPS.StartReason');
 
         // Statistik
         $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', 'ZPS.Minutes');
