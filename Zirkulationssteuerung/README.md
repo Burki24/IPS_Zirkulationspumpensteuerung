@@ -4,13 +4,13 @@ Dieses Modul steuert eine Warmwasser-Zirkulationspumpe abhängig von Bewegungsme
 
 ## Inhaltsverzeichnis
 
-1. Funktionsumfang
-2. Voraussetzungen
-3. Installation
-4. Einrichtung
-5. Statusvariablen
-6. Visualisierung
-7. PHP-Befehle
+1. [Funktionsumfang](#1-funktionsumfang)
+2. [Voraussetzungen](#2-voraussetzungen)
+3. [Installation](#3-installation)
+4. [Einrichtung](#4-einrichtung)
+5. [Statusvariablen](#5-statusvariablen)
+6. [Visualisierung](#6-visualisierung)
+7. [PHP-Befehle](#7-php-befehle)
 
 ## 1. Funktionsumfang
 
@@ -59,15 +59,17 @@ Zirkulationssteuerung
 
 ### Konfiguration
 
-* **Zirkulationspumpe**: Schaltaktor der Pumpe
-* **Bewegungsmelder Bad**: Startet die Pumpe direkt
-* **Bewegungsmelder Küche**: Startet die Pumpe erst nach mehreren Triggern
-* **Runtime**: Laufzeit der Pumpe in Sekunden
-* **LockTime**: Mindestabstand zwischen Starts
-* **TriggerCount**: Anzahl Bewegungen für Küchenstart
-* **TriggerWindow**: Zeitfenster für Küchenlogik
-* **PumpPower**: Leistung der Pumpe (Watt)
-* **EnergyPrice**: Strompreis (€/kWh)
+| Name                  | Beschreibung                                           |
+| ------------------    | ------------------------------------------------------ |
+| Zirkulationspumpe     | Schaltaktor der Pumpe                                  |
+| Bewegungsmelder Bad   | Startet die Pumpe direkt                               |
+| Bewegungsmelder Küche | Startet die Pumpe erst nach mehreren Triggern          |
+| Runtime               | Laufzeit der Pumpe in Sekunden                         |
+| LockTime              | Mindestabstand zwischen Starts                         |
+| TriggerCount          | Anzahl Bewegungen für Küchenstart                      |
+| TriggerWindow         | Zeitfenster für Küchenlogik                            |
+| PumpPower             | Leistung der Pumpe (Watt)                              |
+| EnergyPrice           | Strompreis (€/kWh)                                     |
 
 ## 5. Statusvariablen
 
