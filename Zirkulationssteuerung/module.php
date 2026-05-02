@@ -28,11 +28,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         parent::Create();
 
         $this->RegisterProfileFloat('ZPS.Hours', 'Clock', '', ' h', 0, 0, 0, 2);
-        $this->RegisterProfileIntegerEx('ZPS.StartReason', 'Information', '', '', [
-            [1, 'Direkt', '', 0x00FF00],
-            [2, 'Impulsbasiert', '', 0x0000FF],
-            [3, 'Manuell', '', 0xAAAAAA]
-        ]);
+        $this->RegisterProfileFloat('ZPS.Minutes', 'Clock', '', ' min', 0, 0, 0, 2);
 
         // Geräte
         $this->RegisterPropertyInteger('MotionIDDirect', 0);
@@ -70,10 +66,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('LastRun', 'Letzte Aktivierung', '~UnixTimestamp');
         $this->RegisterVariableInteger('RunCount', 'Anzahl Starts', '');
         $this->RegisterVariableBoolean('Active', 'Pumpe aktiv', '~Switch');
-        $this->RegisterVariableInteger('StartReason', 'Startgrund', 'ZPS.StartReason');
 
         // Statistik
-        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', '');
+        $this->RegisterVariableInteger('DailyRuntime', 'Laufzeit heute', 'ZPS.Minutes');
         $this->RegisterVariableFloat('DailyEnergy', 'Verbrauch heute', '~Electricity');
         $this->RegisterVariableFloat('DailySavings', 'Ersparnis heute', '~Electricity');
 
@@ -159,7 +154,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         if (!(bool)GetValue($SenderID)) return;
 
         if ($SenderID === $this->ReadPropertyInteger('MotionIDDirect')) {
-            $this->TrySwitchOn(1);
+            $this->TrySwitchOn();
             return;
         }
 
@@ -196,7 +191,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('ImpulseEvents', json_encode($events));
 
         if (count($events) >= $this->ReadPropertyInteger('TriggerCount')) {
-            $this->TrySwitchOn(2);
+            $this->TrySwitchOn(1);
             $this->SetBuffer('ImpulseEvents', json_encode([]));
         }
     }
@@ -209,11 +204,10 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function TrySwitchOn(int $reason): void
+    private function TrySwitchOn(): void
     {
         if ($this->IsLocked()) return;
-    
-        $this->SwitchOn($reason);
+        $this->SwitchOn();
     }
 
     /**
@@ -228,24 +222,23 @@ class Zirkulationssteuerung extends IPSModuleStrict
      * @see RequestAction()
      * @see \IPSModule::SetTimerInterval()
      */
-    public function SwitchOn(int $reason = 3): void
+    public function SwitchOn(): void
     {
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
-    
+
         $runtime = $this->ReadPropertyInteger('Runtime');
-    
+
         RequestAction($id, true);
         $this->SetTimerInterval('OffTimer', $runtime * 1000);
-    
+
         $now = time();
         $this->SetBuffer('RunStart', (string)$now);
         $this->SetBuffer('LastRun', (string)$now);
-    
+
         $this->SetValue('LastRun', $now);
         $this->SetValue('RunCount', $this->GetValue('RunCount') + 1);
         $this->SetValue('Active', true);
-        $this->SetValue('StartReason', $reason);
     }
 
     /**
@@ -400,8 +393,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
 
         $duration = time() - $start;
         $runtime = $this->GetValue('DailyRuntime') + $duration;
-
-        $this->SetValue('DailyRuntime', $runtime);
+        $minutes = round($runtime / 60, 2);
+        $this->SetValue('DailyRuntime', $minutes);
 
         $energy = ($power / 1000) * ($runtime / 3600);
         $this->SetValue('DailyEnergy', round($energy, 3));
