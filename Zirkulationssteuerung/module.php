@@ -411,19 +411,41 @@ class Zirkulationssteuerung extends IPSModuleStrict
      *
      * @return void
      */
-    private function UpdateSavings(float $power): void
+    private function UpdateSavingsPerRun(int $duration, float $power): void
     {
-        $install = $this->ReadAttributeInteger('InstallTime');
-        if ($install <= 0) {
-            $install = (int)$this->GetBuffer('InstallTime');
-        }
-        if ($install <= 0) return;
+        // Verbrauch bei Dauerbetrieb
+        $fullEnergy = ($power / 1000) * ($duration / 3600);
 
-        $hours = (time() - $install) / 3600;
-        $full = ($power / 1000) * $hours;
-        $saved = max(0, $full - $this->GetValue('EstimatedEnergy'));
+        // Tatsächlicher Verbrauch des Pumpenlaufs
+        $usedEnergy = $fullEnergy;
 
-        $this->SetValue('SavedEnergy', round($saved, 3));
+        // Eingesparte Energie:
+        // Dauerbetrieb MINUS tatsächlicher Betrieb
+        // => bei einem einzelnen Lauf praktisch 0
+        // Deshalb rechnen wir gegen die Sperrzeit
+
+        $lockTime = max(1, $this->ReadPropertyInteger('LockTime'));
+
+        $theoreticalContinuous =
+            ($power / 1000) * ($lockTime / 3600);
+
+        $saved = max(0, $theoreticalContinuous - $usedEnergy);
+
+        $this->SetValue(
+            'SavedEnergy',
+            round(
+                $this->GetValue('SavedEnergy') + $saved,
+                3
+            )
+        );
+
+        $this->SetValue(
+            'DailySavings',
+            round(
+                $this->GetValue('DailySavings') + $saved,
+                3
+            )
+        );
     }
 
     /**
@@ -519,9 +541,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function ProcessRun(int $duration, float $power): void
     {
         $this->UpdateCostsPerRun($duration, $power);
+        $this->UpdateSavingsPerRun($duration, $power);
         $this->UpdateRuntime($duration);
         $this->UpdateEnergy($power);
-        $this->UpdateSavings($power);
         $this->UpdateDaily($duration, $power);
         $this->UpdateCosts();
     }
