@@ -65,7 +65,8 @@
             "Pump power consumption used for calculations.": "Leistungsaufnahme der Pumpe für die Berechnung.",
             "Energy costs": "Stromkosten",
             "Electricity price (€/kWh)": "Strompreis (€/kWh)",
-            "Used to calculate operating costs.": "Wird zur Berechnung der Betriebskosten verwendet."
+            "Used to calculate operating costs.": "Wird zur Berechnung der Betriebskosten verwendet.",
+            "Runtime today (min)": "Laufzeit heute (min)"
         }
     }
 }
