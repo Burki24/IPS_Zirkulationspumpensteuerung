@@ -87,7 +87,8 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('StartReason', 'Start reason', 'ZPS.StartReason');
 
         // Statistik
-        $this->RegisterVariableFloat('DailyRuntime', 'Runtime today', 'ZPS.Minutes');
+        //$this->RegisterVariableFloat('DailyRuntime', 'Runtime today', 'ZPS.Minutes');
+        $this->RegisterVariableFloat('DailyRuntimeMinutes', 'Runtime today (min)', 'ZPS.Minutes');
         $this->RegisterVariableFloat('DailyEnergy', 'Consumption today', '~Electricity');
         $this->RegisterVariableFloat('DailySavings', 'Savings today', '~Electricity');
 
@@ -111,6 +112,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
         // Buffer
         if ($this->GetBuffer('LastDay') === '') {
             $this->SetBuffer('LastDay', date('Y-m-d'));
+        }
+        if ($this->GetBuffer('DailyRuntime') === '') {
+            $this->SetBuffer('DailyRuntime', '0');
         }
 
         $attributeInstallTime = $this->ReadAttributeInteger('InstallTime');
@@ -358,13 +362,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
     private function CheckDailyReset(): void
     {
         $today = date('Y-m-d');
-
         if ($this->GetBuffer('LastDay') !== $today) {
-            $this->SetValue('DailyRuntime', 0.0);
+            $this->SetBuffer('DailyRuntime', '0');
+            $this->SetValue('DailyRuntimeMinutes', 0.0);
             $this->SetValue('DailyEnergy', 0.0);
             $this->SetValue('DailySavings', 0.0);
+            $this->SetValue('DailyCost', 0.0);
             $this->SetValue('DailyCostAccumulated', 0.0);
-
             $this->SetBuffer('LastDay', $today);
         }
     }
@@ -435,25 +439,25 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     private function UpdateDaily(int $duration, float $power): void
     {
-        $runtimeSeconds = ((float)$this->GetValue('DailyRuntime') * 60) + $duration;
-        $minutes = round($runtimeSeconds / 60, 2);
-        $this->SetValue('DailyRuntime', $minutes);
-
+        // Laufzeit intern in Sekunden speichern
+        $runtimeSeconds = (int)$this->GetBuffer('DailyRuntime');
+        $runtimeSeconds += $duration;
+        $this->SetBuffer('DailyRuntime', (string)$runtimeSeconds);
+        // Sichtbare Minutenvariable
+        $this->SetValue('DailyRuntimeMinutes', round($runtimeSeconds / 60, 2));
+        // Energie heute
         $energy = ($power / 1000) * ($runtimeSeconds / 3600);
         $this->SetValue('DailyEnergy', round($energy, 3));
-
+        // Einsparung heute
         $todayStart = strtotime(date('Y-m-d 00:00:00'));
         $install = $this->ReadAttributeInteger('InstallTime');
         if ($install <= 0) {
             $install = (int)$this->GetBuffer('InstallTime');
         }
-
         $startTime = max($todayStart, $install);
         $elapsed = max(0, time() - $startTime);
-
         $full = ($power / 1000) * ($elapsed / 3600);
         $saved = max(0, $full - $energy);
-
         $this->SetValue('DailySavings', round($saved, 3));
     }
 
