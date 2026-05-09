@@ -463,24 +463,24 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         // Laufzeit intern in Sekunden speichern
         $runtimeSeconds = (int)$this->GetBuffer('DailyRuntime');
+
         $runtimeSeconds += $duration;
+
         $this->SetBuffer('DailyRuntime', (string)$runtimeSeconds);
-        // Sichtbare Minutenvariable
-        $this->SetValue('DailyRuntimeMinutes', round($runtimeSeconds / 60, 2));
-        // Energie heute
+
+        // Sichtbare Laufzeit in Minuten
+        $this->SetValue(
+            'DailyRuntimeMinutes',
+            round($runtimeSeconds / 60, 2)
+        );
+
+        // Tagesverbrauch berechnen
         $energy = ($power / 1000) * ($runtimeSeconds / 3600);
-        $this->SetValue('DailyEnergy', round($energy, 3));
-        // Einsparung heute
-        $todayStart = strtotime(date('Y-m-d 00:00:00'));
-        $install = $this->ReadAttributeInteger('InstallTime');
-        if ($install <= 0) {
-            $install = (int)$this->GetBuffer('InstallTime');
-        }
-        $startTime = max($todayStart, $install);
-        $elapsed = max(0, time() - $startTime);
-        $full = ($power / 1000) * ($elapsed / 3600);
-        $saved = max(0, $full - $energy);
-        $this->SetValue('DailySavings', round($saved, 3));
+
+        $this->SetValue(
+            'DailyEnergy',
+            round($energy, 3)
+        );
     }
 
     /**
