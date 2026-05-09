@@ -286,6 +286,9 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     public function SwitchOn(int $reason = 3): void
     {
+        if ($this->GetValue('Active')) {
+            return;
+        }
         if (
             !$this->ReadPropertyBoolean('Enabled') &&
             $reason !== 3
