@@ -7,7 +7,7 @@
             "Combined (all sensors)": "Kombiniert (alle Sensoren)",
             "Same sensor only": "Nur gleicher Sensor",
             "Different sensors only": "Nur unterschiedliche Sensoren",
-
+            "Manual buttons": "Manuelle Taster",
             "Last activation": "Letzte Aktivierung",
             "Start count": "Anzahl Starts",
             "Pump active": "Pumpe aktiv",
@@ -23,7 +23,6 @@
             "Cost today (dyn)": "Kosten heute (dyn)",
             "Total cost": "Kosten gesamt",
             "Cost today": "Kosten heute",
-
             "Circulation pump switch actor": "Schaltaktor Zirkulationspumpe",
             "Circulation pump": "Zirkulationspumpe",
             "Motion detection": "Bewegungserkennung",
