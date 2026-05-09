@@ -47,8 +47,12 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyInteger('MotionIDImpulse', 0);
         $this->RegisterPropertyInteger('MotionIDImpulse2', 0);
         $this->RegisterPropertyInteger('MotionIDImpulse3', 0);
+        $this->RegisterPropertyInteger('ButtonID', 0);
+        $this->RegisterPropertyInteger('ButtonID2', 0);
+        $this->RegisterPropertyInteger('ButtonID3', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
         $this->RegisterPropertyBoolean('Enabled', true);
+
 
         // Laufzeit
         $this->RegisterPropertyInteger('Runtime', 180);
@@ -158,8 +162,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
             }
         }
 
-        $currentSensorIds = array_values(array_unique(array_merge($this->GetDirectMotionIDs(), $this->GetImpulseMotionIDs())));
-
+        $currentSensorIds = array_values(array_unique(array_merge(
+            $this->GetDirectMotionIDs(),
+            $this->GetImpulseMotionIDs(),
+            $this->GetButtonIDs()
+        )));
         foreach ($currentSensorIds as $sensorId) {
             if ($sensorId > 0 && IPS_VariableExists($sensorId)) {
                 $this->RegisterMessage($sensorId, VM_UPDATE);
@@ -198,6 +205,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
     {
         if ($Message !== VM_UPDATE) return;
         if (!(bool)GetValue($SenderID)) return;
+
+        if (in_array($SenderID, $this->GetButtonIDs(), true)) {
+            $this->SwitchOn(3);
+            return;
+        }
 
         if (in_array($SenderID, $this->GetDirectMotionIDs(), true)) {
             $this->TrySwitchOn(1);
@@ -274,6 +286,13 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     public function SwitchOn(int $reason = 3): void
     {
+        if (
+            !$this->ReadPropertyBoolean('Enabled') &&
+            $reason !== 3
+        ) {
+            return;
+        }
+
         $id = $this->ReadPropertyInteger('SwitchID');
         if (!IPS_VariableExists($id)) return;
 
@@ -664,5 +683,14 @@ class Zirkulationssteuerung extends IPSModuleStrict
         }
 
         return $normalized;
+    }
+
+    private function GetButtonIDs(): array
+    {
+        return array_values(array_filter([
+            $this->ReadPropertyInteger('ButtonID'),
+            $this->ReadPropertyInteger('ButtonID2'),
+            $this->ReadPropertyInteger('ButtonID3')
+        ], static fn(int $id): bool => $id > 0));
     }
 }
