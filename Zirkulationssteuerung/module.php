@@ -86,30 +86,30 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterAttributeInteger('InstallTime', 0);
 
         // Status
-        $this->RegisterVariableInteger('LastRun', 'Last activation', '~UnixTimestamp');
-        $this->RegisterVariableInteger('RunCount', 'Start count', '');
-        $this->RegisterVariableBoolean('Active', 'Pump active', '~Switch');
-        $this->RegisterVariableInteger('StartReason', 'Start reason', 'ZPS.StartReason');
-        $this->RegisterVariableBoolean('ModuleActive', 'Automation active', '~Switch');
+        $this->RegisterVariableInteger('LastRun', $this->Translate('Last activation'), '~UnixTimestamp');
+        $this->RegisterVariableInteger('RunCount', $this->Translate('Start count'), '');
+        $this->RegisterVariableBoolean('Active', $this->Translate('Pump active'), '~Switch');
+        $this->RegisterVariableInteger('StartReason', $this->Translate('Start reason'), 'ZPS.StartReason');
+        $this->RegisterVariableBoolean('ModuleActive', $this->Translate('Automation active'), '~Switch');
 
         // Statistik
         //$this->RegisterVariableFloat('DailyRuntime', 'Runtime today', 'ZPS.Minutes');
-        $this->RegisterVariableFloat('DailyRuntimeMinutes', 'Runtime today (min)', 'ZPS.Minutes');
-        $this->RegisterVariableFloat('DailyEnergy', 'Consumption today', '~Electricity');
-        $this->RegisterVariableFloat('DailySavings', 'Savings today', '~Electricity');
+        $this->RegisterVariableFloat('DailyRuntimeMinutes', $this->Translate('Runtime today (min)'), 'ZPS.Minutes');
+        $this->RegisterVariableFloat('DailyEnergy', $this->Translate('Consumption today'), '~Electricity');
+        $this->RegisterVariableFloat('DailySavings', $this->Translate('Savings today'), '~Electricity');
 
-        $this->RegisterVariableInteger('TotalRuntime', 'Total runtime', '');
-        $this->RegisterVariableFloat('TotalRuntimeHours', 'Total runtime (h)', 'ZPS.Hours');
+        $this->RegisterVariableInteger('TotalRuntime', $this->Translate('Total runtime'), '');
+        $this->RegisterVariableFloat('TotalRuntimeHours', $this->Translate('Total runtime (h)'), 'ZPS.Hours');
 
-        $this->RegisterVariableFloat('EstimatedEnergy', 'Total consumption', '~Electricity');
-        $this->RegisterVariableFloat('SavedEnergy', 'Total savings', '~Electricity');
+        $this->RegisterVariableFloat('EstimatedEnergy', $this->Translate('Total consumption'), '~Electricity');
+        $this->RegisterVariableFloat('SavedEnergy', $this->Translate('Total savings'), '~Electricity');
 
         // Kosten
-        $this->RegisterVariableFloat('EnergyCost', 'Total cost (dyn)', '~Euro');
-        $this->RegisterVariableFloat('DailyCost', 'Cost today (dyn)', '~Euro');
+        $this->RegisterVariableFloat('EnergyCost', $this->Translate('Total cost (dyn)'), '~Euro');
+        $this->RegisterVariableFloat('DailyCost', $this->Translate('Cost today (dyn)'), '~Euro');
 
-        $this->RegisterVariableFloat('EnergyCostAccumulated', 'Total cost', '~Euro');
-        $this->RegisterVariableFloat('DailyCostAccumulated', 'Cost today', '~Euro');
+        $this->RegisterVariableFloat('EnergyCostAccumulated', $this->Translate('Total cost'), '~Euro');
+        $this->RegisterVariableFloat('DailyCostAccumulated', $this->Translate('Cost today'), '~Euro');
 
         // Timer
         $this->RegisterTimer('OffTimer', 0, 'ZPS_SwitchOff($_IPS["TARGET"]);');
