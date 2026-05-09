@@ -64,6 +64,10 @@
             "caption": "Manual buttons"
         },
         {
+            "type": "Label",
+            "caption": "Starts the pump immediately when Button is pressed."
+        },
+        {
             "type": "SelectVariable",
             "name": "ButtonID",
             "caption": "Manual button 1"
@@ -77,14 +81,6 @@
             "type": "SelectVariable",
             "name": "ButtonID3",
             "caption": "Manual button 3"
-        },
-        {
-            "type": "Label",
-            "caption": "Motion detection"
-        },
-        {
-            "type": "Label",
-            "caption": "Starts the pump immediately when motion is detected."
         },
         {
             "type": "Label",

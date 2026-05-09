@@ -30,6 +30,7 @@
             "Direct sensor 2 (start immediately)": "Direkt Sensor 2 (sofort starten)",
             "Direct sensor 3 (start immediately)": "Direkt Sensor 3 (sofort starten)",
             "Starts the pump immediately when motion is detected.": "Startet die Pumpe sofort bei Bewegung.",
+            "Starts the pump immediately when Button is pressed.": "Startet die Pumpe sofort bei Knopfdruck.",
             "Impulse sensor 1 (multiple motions)": "Impuls Sensor 1 (mehrere Bewegungen)",
             "Impulse sensor 2 (multiple motions)": "Impuls Sensor 2 (mehrere Bewegungen)",
             "Impulse sensor 3 (multiple motions)": "Impuls Sensor 3 (mehrere Bewegungen)",
