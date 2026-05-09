@@ -6,6 +6,11 @@
             "caption": "Circulation pump switch actor"
         },
         {
+            "type": "CheckBox",
+            "name": "Enabled",
+            "caption": "Automatisierung aktiv"
+        },
+        {
             "type": "SelectVariable",
             "name": "SwitchID",
             "caption": "Circulation pump"

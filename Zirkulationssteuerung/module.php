@@ -48,6 +48,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterPropertyInteger('MotionIDImpulse2', 0);
         $this->RegisterPropertyInteger('MotionIDImpulse3', 0);
         $this->RegisterPropertyInteger('SwitchID', 0);
+        $this->RegisterPropertyBoolean('Enabled', true);
 
         // Laufzeit
         $this->RegisterPropertyInteger('Runtime', 180);
@@ -85,6 +86,7 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->RegisterVariableInteger('RunCount', 'Start count', '');
         $this->RegisterVariableBoolean('Active', 'Pump active', '~Switch');
         $this->RegisterVariableInteger('StartReason', 'Start reason', 'ZPS.StartReason');
+        $this->RegisterVariableBoolean('ModuleActive', 'Automation active', '~Switch');
 
         // Statistik
         //$this->RegisterVariableFloat('DailyRuntime', 'Runtime today', 'ZPS.Minutes');
@@ -167,6 +169,11 @@ class Zirkulationssteuerung extends IPSModuleStrict
         $this->SetBuffer('RegisteredSensorIDs', json_encode($currentSensorIds));
 
         $this->SetDailyResetTimer();
+
+        $this->SetValue(
+            'ModuleActive',
+            $this->ReadPropertyBoolean('Enabled')
+        );
     }
 
     /**
@@ -240,7 +247,16 @@ class Zirkulationssteuerung extends IPSModuleStrict
      */
     private function TrySwitchOn(int $reason = 1): void
     {
-        if ($this->IsLocked()) return;
+        // Modul deaktiviert
+        if (!$this->ReadPropertyBoolean('Enabled')) {
+            return;
+        }
+
+        // Sperrzeit aktiv
+        if ($this->IsLocked()) {
+            return;
+        }
+
         $this->SwitchOn($reason);
     }
 
